@@ -11,7 +11,7 @@ export const CONFIG = {
   },
 
   diagnostics: {
-    // Local development server port used by the dev script. Recommended range: 3000–9999.
+    // Local development server port used by the dev script. Recommended range: 3000â€“9999.
     devServerPort: 5173,
     // Build output folder used by the build script. Recommended: a short folder name such as dist.
     buildOutputFolder: 'dist',
@@ -42,9 +42,9 @@ export const CONFIG = {
   },
 
   canvas: {
-    // Internal design width for all Canvas drawing. Recommended range: 960–1920.
+    // Internal design width for all Canvas drawing. Recommended range: 960â€“1920.
     width: 1280,
-    // Internal design height for all Canvas drawing. Recommended range: 540–1080.
+    // Internal design height for all Canvas drawing. Recommended range: 540â€“1080.
     height: 720,
     // Canvas element id used by the HTML container. Recommended: keep as game.
     elementId: 'game',
@@ -89,14 +89,10 @@ export const CONFIG = {
     playerBody: '#d8e6ff',
     // AI character silhouette color. Recommended: neutral warm color.
     aiBody: '#ffd5c7',
-    // Attack projectile color. Recommended: warm color.
-    attackEffect: '#ffd166',
     // Skill projectile color. Recommended: dramatic bright color.
     skillEffect: '#ff5fd2',
-    // Defence aura color. Recommended: cool shield color.
+    // Shield aura color. Recommended: cool shield color.
     defenceAura: 'rgba(78, 194, 255, 0.38)',
-    // Block aura color. Recommended: bright shield color.
-    blockAura: 'rgba(255, 255, 255, 0.50)',
     // Failed command feedback color. Recommended: red/orange.
     warning: '#ff6b6b',
     // Canvas fallback button fill color. Recommended: dark translucent color.
@@ -110,15 +106,15 @@ export const CONFIG = {
   fonts: {
     // Font family used for all Canvas text. Recommended: system-safe sans-serif stack.
     family: 'Arial, Helvetica, sans-serif',
-    // Large overlay text size in pixels. Recommended range: 48–96.
+    // Large overlay text size in pixels. Recommended range: 48â€“96.
     overlaySize: 72,
-    // Large HUD text size in pixels. Recommended range: 24–42.
+    // Large HUD text size in pixels. Recommended range: 24â€“42.
     largeSize: 34,
-    // Normal HUD text size in pixels. Recommended range: 16–28.
+    // Normal HUD text size in pixels. Recommended range: 16â€“28.
     normalSize: 22,
-    // Small HUD text size in pixels. Recommended range: 12–20.
+    // Small HUD text size in pixels. Recommended range: 12â€“20.
     smallSize: 16,
-    // Button label text size in pixels. Recommended range: 16–26.
+    // Button label text size in pixels. Recommended range: 16â€“26.
     buttonSize: 20,
     // Font weight for important labels. Recommended: bold or 700.
     boldWeight: '700',
@@ -127,13 +123,13 @@ export const CONFIG = {
   },
 
   match: {
-    // Total active match duration after countdown, in seconds. Recommended range: 30–90.
+    // Total active match duration after countdown, in seconds. Recommended range: 30â€“90.
     durationSeconds: 60,
-    // Starting countdown duration, in seconds. Recommended range: 2–5.
+    // Starting countdown duration, in seconds. Recommended range: 2â€“5.
     countdownSeconds: 3,
-    // Time the Fight banner remains visible when active play starts, in seconds. Recommended range: 0.25–1.5.
+    // Time the Fight banner remains visible when active play starts, in seconds. Recommended range: 0.25â€“1.5.
     fightBannerSeconds: 0.8,
-    // Starting HP for each side. Recommended range: 50–200.
+    // Starting HP for each side. Recommended range: 50â€“200.
     startingHp: 100,
     // Starting energy cubes for each side. Recommended range: 10-30.
     startingEnergy: 20,
@@ -167,81 +163,8 @@ export const CONFIG = {
     restartHint: 'Press R or tap Restart to play again'
   },
 
-  actions: {
-    attack: {
-      // Spoken command required to trigger a basic attack. Recommended: one common complete word.
-      command: 'Attack',
-      // Display label shown above the dragon during the action. Recommended: match command.
-      label: 'Attack',
-      // Keyboard key used as desktop fallback. Recommended: single letter.
-      key: 'a',
-      // Base damage dealt before Block or Defence is applied. Recommended range: 5–20.
-      damage: 10,
-      // Cooldown after the action succeeds, in seconds. Recommended range: 1–4.
-      cooldownSeconds: 2,
-      // How long the action label/effect remains visible, in seconds. Recommended range: 0.2–1.2.
-      displaySeconds: 0.55,
-      // Action type used by combat systems. Recommended: damage for direct attacks.
-      type: 'damage'
-    },
-    defence: {
-      // Spoken command required to trigger damage reduction. Recommended: keep this exact spelling for the prototype.
-      command: 'Defence',
-      // Display label shown while the defence buff is active. Recommended: match command.
-      label: 'Defence',
-      // Keyboard key used as desktop fallback. Recommended: single letter.
-      key: 'd',
-      // Base damage for this action. Recommended: 0 because it is a defensive action.
-      damage: 0,
-      // Cooldown after the action succeeds, in seconds. Recommended range: 4–8.
-      cooldownSeconds: 6,
-      // Active duration for damage reduction, in seconds. Recommended range: 2–4.
-      activeSeconds: 3,
-      // Action type used by combat systems. Recommended: defence.
-      type: 'defence'
-    },
-    block: {
-      // Spoken command required to fully prevent incoming damage. Recommended: one common complete word.
-      command: 'Block',
-      // Display label shown while the block buff is active. Recommended: match command.
-      label: 'Block',
-      // Keyboard key used as desktop fallback. Recommended: single letter.
-      key: 'b',
-      // Base damage for this action. Recommended: 0 because it is a defensive action.
-      damage: 0,
-      // Cooldown after the action succeeds, in seconds. Recommended range: 3–7.
-      cooldownSeconds: 5,
-      // Active duration for full damage prevention, in seconds. Recommended range: 0.5–1.5.
-      activeSeconds: 1,
-      // Action type used by combat systems. Recommended: block.
-      type: 'block'
-    },
-    skill: {
-      // Spoken command required to trigger the special skill. Recommended: one common complete word.
-      command: 'Skill',
-      // Display label shown above the dragon during the special skill. Recommended: match command.
-      label: 'Skill',
-      // Keyboard key used as desktop fallback. Recommended: single letter.
-      key: 's',
-      // Base damage dealt before Block or Defence is applied. Recommended range: 15–40.
-      damage: 25,
-      // Cooldown after the action succeeds, in seconds. Recommended range: 8–15.
-      cooldownSeconds: 10,
-      // How long the action label/effect remains visible, in seconds. Recommended range: 0.4–1.5.
-      displaySeconds: 0.9,
-      // Action type used by combat systems. Recommended: damage for direct special attacks.
-      type: 'damage'
-    }
-  },
-
   combat: {
-    // Damage multiplier applied when the target has Defence active. Recommended range: 0.25–0.75.
-    defenceDamageMultiplier: 0.5,
-    // Damage multiplier applied when the target has Block active. Recommended: 0.
-    blockDamageMultiplier: 0,
-    // HP rounding behavior after damage. Recommended: round for clean player-facing numbers.
-    hpRoundingMode: 'round',
-    // Short duration for failed command labels such as Cooldown or Unknown Command, in seconds. Recommended range: 0.4–1.2.
+    // Short duration for failed command labels such as Cooldown or Unknown Command, in seconds. Recommended range: 0.4â€“1.2.
     failedFeedbackSeconds: 0.8,
     // State label shown when a dragon is doing nothing. Recommended: Idle.
     idleLabel: 'Idle',
@@ -262,14 +185,8 @@ export const CONFIG = {
   },
 
   ai: {
-    // How often the AI attempts one action while the match is active, in seconds. Recommended range: 1.5–3.
+    // How often the AI attempts one spell while the match is active, in seconds. Recommended range: 1.5â€“3.
     actionIntervalSeconds: 2,
-    // Chance the AI uses Skill when it is available and no reactive defence is needed. Recommended range: 0–1.
-    skillChanceWhenReady: 0.35,
-    // Chance the AI chooses Block instead of Defence when reacting to player Skill. Recommended range: 0–1.
-    blockChanceAgainstSkill: 0.55,
-    // Chance the AI chooses Defence during a normal action when it needs a non-attack choice. Recommended range: 0–1.
-    defenceChance: 0.2,
     // Random seed used by deterministic tests and optional debug runs. Recommended: any positive integer.
     defaultSeed: 42,
     // AI command shown when no action has happened yet. Recommended: Waiting.
@@ -279,24 +196,32 @@ export const CONFIG = {
   spells: {
     // Number of prepared egg spells each side brings into combat. Recommended: exactly 5 for this prototype.
     perLoadout: 5,
-    // Spell family names used for Vietnamese-myth placeholder identity. Recommended: five short unique words.
-    defaultFamilies: ['Long', 'Son', 'Thuy', 'Giong', 'Truc'],
+    // Element names used as the first word in generated spell names. Recommended: short readable words.
+    elements: ['Light', 'Fire', 'Water', 'Earth', 'Wind', 'Dark', 'Stone', 'Ice'],
+    // Spell family names derived from elements for placeholder identity. Recommended: match the first five elements.
+    defaultFamilies: ['Light', 'Fire', 'Water', 'Earth', 'Wind'],
+    // Move words used as the second word in generated spell names by spell type. Recommended: distinct action nouns.
+    moveNamesByType: {
+      Attack: 'Slash',
+      Defense: 'Guard',
+      Support: 'Heal',
+      Control: 'Snare',
+      Utility: 'Dash'
+    },
     // Default player spell names shown in the static Milestone 1 shell. Recommended: unique two-word names.
-    defaultPlayerNames: ['Long Fire', 'Son Guard', 'Thuy Heal', 'Giong Snare', 'Truc Dash'],
+    defaultPlayerNames: ['Light Slash', 'Fire Guard', 'Water Heal', 'Earth Snare', 'Wind Dash'],
     // Default AI spell names shown in the static Milestone 1 shell. Recommended: unique two-word names.
-    defaultAiNames: ['Long Spark', 'Son Wall', 'Thuy Mend', 'Giong Net', 'Truc Step'],
+    defaultAiNames: ['Dark Slash', 'Stone Guard', 'Ice Heal', 'Light Snare', 'Fire Dash'],
     // Spell type labels used in the forge selector and spell buttons. Recommended: the five GDD types.
     types: ['Attack', 'Defense', 'Support', 'Control', 'Utility'],
     // Minimum accepted spell name length before saving a spell. Recommended range: 3-12 characters.
     minimumNameLength: 3,
     // Similarity ratio where two names are considered too close. Recommended range: 0.65-0.9.
     similarNameThreshold: 0.72,
-    // Candidate player spell names cycled by the Canvas name button. Recommended: more than five unique names.
-    nameCycle: ['Long Fire', 'Son Guard', 'Thuy Heal', 'Giong Snare', 'Truc Dash', 'Lua Fang', 'Da Shield', 'Mua Bloom'],
+    // Candidate element order cycled by the Canvas name button. Move word comes from selected spell type.
+    nameCycle: ['Light', 'Fire', 'Water', 'Earth', 'Wind', 'Dark', 'Stone', 'Ice'],
     // Placeholder text for empty or not-yet-editable spell slots. Recommended: short status text.
     placeholderStatus: 'Ready to forge',
-    // Static summary text for the Milestone 1 pattern panel before real analysis exists. Recommended: short text.
-    patternSummaryPlaceholder: 'Pattern summary placeholder',
     // Static effect preview text before spell rules are implemented. Recommended: short text.
     effectPreviewPlaceholder: 'Effect preview placeholder'
   },
@@ -427,58 +352,58 @@ export const CONFIG = {
   input: {
     // Enables browser speech recognition when supported. Recommended: true for voice prototype testing.
     voiceEnabled: true,
-    // Speech recognition language. Recommended: en-US for the locked English command words.
+    // Speech recognition language. Recommended: en-US for the current spell names.
     speechLanguage: 'en-US',
     // Text shown when voice recognition is unavailable in the current browser. Recommended: short message.
     voiceUnavailableText: 'Voice unavailable: use keys or Canvas buttons',
     // Text shown while the mic is listening. Recommended: short message.
-    voiceListeningText: 'Listening... say Attack, Defence, Block, or Skill',
+    voiceListeningText: 'Listening... say a prepared spell name',
     // Text shown before voice listening starts. Recommended: short message.
-    voiceReadyText: 'Tap Voice to speak a command',
+    voiceReadyText: 'Tap Voice to speak a spell name',
     // Canvas voice button label. Recommended: Voice.
     voiceButtonLabel: 'Voice',
     // Restart key for desktop. Recommended: r.
     restartKey: 'r',
     // Keyboard key used to toggle voice listening. Recommended: v.
     voiceKey: 'v',
-    // Maximum transcript length shown in the HUD. Recommended range: 20–60 characters.
+    // Maximum transcript length shown in the HUD. Recommended range: 20â€“60 characters.
     maxTranscriptCharacters: 36,
     // Message shown for invalid keyboard input in debug feedback. Recommended: short text.
     invalidKeyText: 'No command mapped to key'
   },
 
   layout: {
-    // Padding around outer HUD elements in pixels. Recommended range: 12–32.
+    // Padding around outer HUD elements in pixels. Recommended range: 12â€“32.
     outerPadding: 20,
-    // Status panel width in pixels. Recommended range: 260–380.
+    // Status panel width in pixels. Recommended range: 260â€“380.
     statusPanelWidth: 330,
-    // Status panel height in pixels. Recommended range: 100–160.
+    // Status panel height in pixels. Recommended range: 100â€“160.
     statusPanelHeight: 132,
-    // Corner radius for Canvas panels and buttons in pixels. Recommended range: 6–20.
+    // Corner radius for Canvas panels and buttons in pixels. Recommended range: 6â€“20.
     cornerRadius: 14,
-    // Border line width for panels in pixels. Recommended range: 1–4.
+    // Border line width for panels in pixels. Recommended range: 1â€“4.
     panelLineWidth: 2,
-    // HP bar height in pixels. Recommended range: 12–28.
+    // HP bar height in pixels. Recommended range: 12â€“28.
     hpBarHeight: 18,
-    // HP bar vertical offset inside status panels in pixels. Recommended range: 36–72.
+    // HP bar vertical offset inside status panels in pixels. Recommended range: 36â€“72.
     hpBarY: 48,
-    // Width of each cooldown chip in pixels. Recommended range: 46–76.
+    // Width of each cooldown chip in pixels. Recommended range: 46â€“76.
     cooldownChipWidth: 63,
-    // Height of each cooldown chip in pixels. Recommended range: 18–34.
+    // Height of each cooldown chip in pixels. Recommended range: 18â€“34.
     cooldownChipHeight: 24,
-    // Spacing between cooldown chips in pixels. Recommended range: 4–12.
+    // Spacing between cooldown chips in pixels. Recommended range: 4â€“12.
     cooldownChipGap: 7,
-    // Top-center timer panel width in pixels. Recommended range: 180–320.
+    // Top-center timer panel width in pixels. Recommended range: 180â€“320.
     timerPanelWidth: 240,
-    // Top-center timer panel height in pixels. Recommended range: 58–96.
+    // Top-center timer panel height in pixels. Recommended range: 58â€“96.
     timerPanelHeight: 74,
-    // Bottom command panel width in pixels. Recommended range: 420–760.
+    // Bottom command panel width in pixels. Recommended range: 420â€“760.
     commandPanelWidth: 610,
-    // Bottom command panel height in pixels. Recommended range: 66–120.
+    // Bottom command panel height in pixels. Recommended range: 66â€“120.
     commandPanelHeight: 88,
-    // Width for latest command panels in pixels. Recommended range: 280–420.
+    // Width for latest command panels in pixels. Recommended range: 280â€“420.
     latestPanelWidth: 360,
-    // Height for latest command panels in pixels. Recommended range: 58–96.
+    // Height for latest command panels in pixels. Recommended range: 58â€“96.
     latestPanelHeight: 82,
     // Preparation screen main drawing area x position in design pixels. Recommended range: 40-180.
     eggDrawingX: 70,
@@ -496,6 +421,8 @@ export const CONFIG = {
     eggGridColumns: 3,
     // 9-dot grid point radius in pixels. Recommended range: 6-18.
     eggGridPointRadius: 10,
+    // Extra vertical offset for centering the 9-dot grid inside its panel. Recommended range: 0-40.
+    eggGridCenterYOffset: 24,
     // Preparation control panel x position in design pixels. Recommended range: 520-760.
     forgePanelX: 545,
     // Preparation control panel y position in design pixels. Recommended range: 120-220.
@@ -520,64 +447,86 @@ export const CONFIG = {
     prepButtonWidth: 210,
     // Height for preparation action buttons in pixels. Recommended range: 42-64.
     prepButtonHeight: 52,
-    // Spell type button width in pixels. Recommended range: 88-128.
+    // Y position for the pattern utility controls panel in pixels. Recommended range: 560-610.
+    prepUtilityPanelY: 568,
+    // Height for the pattern utility controls panel in pixels. Recommended range: 56-76.
+    prepUtilityPanelHeight: 62,
+    // Y position for the final preparation controls panel in pixels. Recommended range: 625-660.
+    prepFinalPanelY: 638,
+    // Height for the final preparation controls panel in pixels. Recommended range: 56-76.
+    prepFinalPanelHeight: 62,
+    // Y offset for the spell type title inside the forge panel. Recommended range: 80-120.
+    spellTypeTitleY: 98,
+    // Y offset for spell type buttons inside the forge panel. Recommended range: 110-150.
+    spellTypeButtonY: 128,
+    // Spell type button width in pixels. Recommended range: 80-120.
     spellTypeButtonWidth: 98,
-    // Spell type button height in pixels. Recommended range: 34-52.
-    spellTypeButtonHeight: 40,
+    // Spell type button height in pixels. Recommended range: 30-44.
+    spellTypeButtonHeight: 34,
     // Gap between spell type buttons in pixels. Recommended range: 6-14.
     spellTypeButtonGap: 8,
     // Number of spell type buttons per row. Recommended range: 2-4.
     spellTypeButtonColumns: 3,
-    // Name field height in pixels. Recommended range: 38-58.
-    spellNameFieldHeight: 46,
+    // Y offset for the spell name title inside the forge panel. Recommended range: 12-36.
+    spellNameTitleY: 18,
+    // Y offset for the spell name input row inside the forge panel. Recommended range: 38-64.
+    spellNameFieldY: 46,
+    // Width for the spell name input field in pixels. Recommended range: 170-240.
+    spellNameFieldWidth: 190,
+    // Name field height in pixels. Recommended range: 30-44.
+    spellNameFieldHeight: 34,
+    // Width for the cycle spell name button in pixels. Recommended range: 90-130.
+    cycleNameButtonWidth: 116,
+    // Y offset for the dedicated effect preview panel inside the forge panel. Recommended range: 220-270.
+    effectPreviewPanelY: 236,
+    // Height for the dedicated effect preview panel inside the forge panel. Recommended range: 50-80.
+    effectPreviewPanelHeight: 96,
     // Save spell button width in pixels. Recommended range: 140-220.
     saveSpellButtonWidth: 160,
-    // Bottom margin for command HUD in pixels. Recommended range: 16–40.
+    // Bottom margin for command HUD in pixels. Recommended range: 16â€“40.
     bottomMargin: 20,
-    // Vertical placement for the arena horizon in pixels. Recommended range: 240–420.
+    // Vertical placement for the arena horizon in pixels. Recommended range: 240â€“420.
     horizonY: 292,
-    // Vertical placement for near floor edge in pixels. Recommended range: 580–720.
+    // Vertical placement for near floor edge in pixels. Recommended range: 580â€“720.
     floorBottomY: 690,
-    // Player 1 human x position in design pixels. Recommended range: 720–1040.
+    // Player 1 human x position in design pixels. Recommended range: 720â€“1040.
     playerHumanX: 820,
-    // Player 1 human y position in design pixels. Recommended range: 480–640.
+    // Player 1 human y position in design pixels. Recommended range: 480â€“640.
     playerHumanY: 590,
-    // Player 1 dragon x position in design pixels. Recommended range: 580–850.
+    // Player 1 dragon x position in design pixels. Recommended range: 580â€“850.
     playerDragonX: 675,
-    // Player 1 dragon y position in design pixels. Recommended range: 410–570.
+    // Player 1 dragon y position in design pixels. Recommended range: 410â€“570.
     playerDragonY: 495,
-    // AI human x position in design pixels. Recommended range: 440–660.
+    // AI human x position in design pixels. Recommended range: 440â€“660.
     aiHumanX: 580,
-    // AI human y position in design pixels. Recommended range: 260–390.
+    // AI human y position in design pixels. Recommended range: 260â€“390.
     aiHumanY: 345,
-    // AI dragon x position in design pixels. Recommended range: 500–720.
+    // AI dragon x position in design pixels. Recommended range: 500â€“720.
     aiDragonX: 655,
-    // AI dragon y position in design pixels. Recommended range: 205–340.
+    // AI dragon y position in design pixels. Recommended range: 205â€“340.
     aiDragonY: 275,
-    // Width of the player dragon placeholder in pixels. Recommended range: 100–190.
+    // Width of the player dragon placeholder in pixels. Recommended range: 100â€“190.
     playerDragonWidth: 170,
-    // Height of the player dragon placeholder in pixels. Recommended range: 70–140.
+    // Height of the player dragon placeholder in pixels. Recommended range: 70â€“140.
     playerDragonHeight: 105,
-    // Width of the AI dragon placeholder in pixels. Recommended range: 70–150.
+    // Width of the AI dragon placeholder in pixels. Recommended range: 70â€“150.
     aiDragonWidth: 120,
-    // Height of the AI dragon placeholder in pixels. Recommended range: 50–110.
+    // Height of the AI dragon placeholder in pixels. Recommended range: 50â€“110.
     aiDragonHeight: 78,
-    // Human silhouette width in pixels. Recommended range: 28–70.
+    // Human silhouette width in pixels. Recommended range: 28â€“70.
     humanWidth: 48,
-    // Human silhouette height in pixels. Recommended range: 70–130.
+    // Human silhouette height in pixels. Recommended range: 70â€“130.
     humanHeight: 95,
-    // State label offset above dragons in pixels. Recommended range: 40–90.
+    // State label offset above dragons in pixels. Recommended range: 40â€“90.
     stateLabelOffsetY: 68,
-    // Canvas fallback action button width in pixels. Recommended range: 110–170.
-    actionButtonWidth: 132,
-    // Canvas fallback action button height in pixels. Recommended range: 38–64.
+    // Canvas fallback action button height in pixels. Recommended range: 38â€“64.
     actionButtonHeight: 48,
-    // Gap between Canvas fallback buttons in pixels. Recommended range: 8–20.
-    actionButtonGap: 12,
-    // Y position of Canvas fallback buttons in design pixels. Recommended range: 610–690.
+    // Y position of Canvas fallback buttons in design pixels. Recommended range: 610â€“690.
     actionButtonY: 628,
-    // Width of the Voice button in pixels. Recommended range: 90–160.
+    // Width of the Voice button in pixels. Recommended range: 90â€“160.
     voiceButtonWidth: 122,
+    // Y position for the Voice button in design pixels. Recommended range: 300-420.
+    voiceButtonY: 336,
     // Width of each match spell button in pixels. Recommended range: 120-190.
     spellButtonWidth: 150,
     // Height of each match spell button in pixels. Recommended range: 42-68.
@@ -586,40 +535,40 @@ export const CONFIG = {
     spellButtonGap: 12,
     // Y position of match spell buttons in design pixels. Recommended range: 540-620.
     spellButtonY: 560,
-    // Width of the Restart button in pixels. Recommended range: 130–220.
+    // Width of the Restart button in pixels. Recommended range: 130â€“220.
     restartButtonWidth: 174,
-    // Height of overlay buttons in pixels. Recommended range: 42–72.
+    // Height of overlay buttons in pixels. Recommended range: 42â€“72.
     overlayButtonHeight: 56,
-    // Radius used for character heads and decorative circular icons in pixels. Recommended range: 8–28.
+    // Radius used for character heads and decorative circular icons in pixels. Recommended range: 8â€“28.
     iconRadius: 18,
-    // Left edge of the arena trapezoid near floor in pixels. Recommended range: 80–240.
+    // Left edge of the arena trapezoid near floor in pixels. Recommended range: 80â€“240.
     arenaNearLeft: 90,
-    // Right edge of the arena trapezoid near floor in pixels. Recommended range: 1040–1220.
+    // Right edge of the arena trapezoid near floor in pixels. Recommended range: 1040â€“1220.
     arenaNearRight: 1190,
-    // Left edge of the arena trapezoid horizon in pixels. Recommended range: 320–500.
+    // Left edge of the arena trapezoid horizon in pixels. Recommended range: 320â€“500.
     arenaFarLeft: 420,
-    // Right edge of the arena trapezoid horizon in pixels. Recommended range: 760–960.
+    // Right edge of the arena trapezoid horizon in pixels. Recommended range: 760â€“960.
     arenaFarRight: 860,
-    // Y offset for attack effect arcs in pixels. Recommended range: 12–60.
+    // Y offset for attack effect arcs in pixels. Recommended range: 12â€“60.
     effectArcOffsetY: 35,
-    // Width of attack/skill effect strokes in pixels. Recommended range: 4–16.
+    // Width of attack/skill effect strokes in pixels. Recommended range: 4â€“16.
     effectLineWidth: 8
   },
 
   animation: {
-    // Duration for floating hit text, in seconds. Recommended range: 0.4–1.4.
+    // Duration for floating hit text, in seconds. Recommended range: 0.4â€“1.4.
     hitTextSeconds: 0.9,
-    // Vertical travel for floating hit text in pixels. Recommended range: 20–80.
+    // Vertical travel for floating hit text in pixels. Recommended range: 20â€“80.
     hitTextRise: 48,
-    // Duration for attack projectile arc effects, in seconds. Recommended range: 0.25–1.0.
+    // Duration for attack projectile arc effects, in seconds. Recommended range: 0.25â€“1.0.
     projectileSeconds: 0.5,
-    // Screen shake duration after a hit, in seconds. Recommended range: 0–0.5.
+    // Screen shake duration after a hit, in seconds. Recommended range: 0â€“0.5.
     shakeSeconds: 0.18,
-    // Maximum screen shake offset in pixels. Recommended range: 0–12.
+    // Maximum screen shake offset in pixels. Recommended range: 0â€“12.
     shakePixels: 5,
-    // Dragon bob animation height in pixels. Recommended range: 0–10.
+    // Dragon bob animation height in pixels. Recommended range: 0â€“10.
     dragonBobPixels: 5,
-    // Dragon bob cycle duration in seconds. Recommended range: 1–3.
+    // Dragon bob cycle duration in seconds. Recommended range: 1â€“3.
     dragonBobSeconds: 1.6
   },
 
@@ -629,11 +578,11 @@ export const CONFIG = {
     // Player 2 display name. Recommended: short text.
     aiName: 'AI Rival',
     // Player 1 dragon element shown in the HUD. Recommended: one emoji or short word.
-    playerElement: '🔥',
+    playerElement: 'ðŸ”¥',
     // Player 2 dragon element shown in the HUD. Recommended: one emoji or short word.
-    aiElement: '🌊',
+    aiElement: 'ðŸŒŠ',
     // Command reference heading. Recommended: short text.
-    commandReferenceTitle: 'Say full command words',
+    commandReferenceTitle: 'Prepared spell controls',
     // Preparation screen heading. Recommended: short text.
     preparationTitle: 'Egg Spell Forge',
     // Preparation screen subtitle. Recommended: short text.
@@ -644,8 +593,6 @@ export const CONFIG = {
     spellTypeTitle: 'Spell Type',
     // Spell name field heading. Recommended: short text.
     spellNameTitle: 'Spell Name',
-    // Pattern summary heading. Recommended: short text.
-    patternSummaryTitle: 'Pattern Summary',
     // Effect preview heading. Recommended: short text.
     effectPreviewTitle: 'Effect Preview',
     // Spell slot panel heading. Recommended: short text.
@@ -653,7 +600,7 @@ export const CONFIG = {
     // Random pattern button label. Recommended: short command text.
     randomPatternLabel: 'Random Pattern',
     // Confirm loadout button label. Recommended: short command text.
-    confirmLoadoutLabel: 'Preview Match',
+    confirmLoadoutLabel: 'Start Match',
     // Save spell button label. Recommended: short command text.
     saveSpellLabel: 'Save Spell',
     // Cycle spell name button label. Recommended: short command text.
@@ -674,8 +621,8 @@ export const CONFIG = {
     loadoutBlockedFeedback: 'Fill all five spell slots first.',
     // Match preview back button label. Recommended: short command text.
     backToForgeLabel: 'Back To Forge',
-    // Match screen static heading. Recommended: short text.
-    matchPreviewTitle: 'Match Layout Preview',
+    // Match preview heading for the optional layout-only state. Recommended: short text.
+    matchPreviewTitle: 'Match Layout',
     // Energy label text used in HUD panels. Recommended: short text.
     energyLabel: 'Energy',
     // Microphone status label used in match HUD. Recommended: short text.
@@ -689,10 +636,9 @@ export const CONFIG = {
     // Initial AI command text before any AI action. Recommended: short text.
     noAiCommand: 'Waiting',
     // Microcopy shown above fallback controls. Recommended: short text.
-    fallbackHint: 'Keys: A Attack · D Defence · B Block · S Skill · V Voice',
+    fallbackHint: 'Keys: 1-5 cast spells / V Voice',
     // Private asset warning shown in the lower-left corner. Recommended: short reminder.
     assetWarning: 'Private prototype: replace any unlicensed dragon assets before sharing publicly.'
   }
 };
 
-export const ACTION_IDS = Object.freeze(Object.keys(CONFIG.actions));

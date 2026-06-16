@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CONFIG } from '../src/config.js';
 import { createInitialGameState } from '../src/core/gameState.js';
-import { showMatchPreview, showPreparation, transitionTo } from '../src/core/stateMachine.js';
-import { getActionButtonRects, getPreparationRects, getSpellButtonRects } from '../src/ui/layout.js';
+import { showMatchPreview, showPreparation, startMatchCountdown, transitionTo } from '../src/core/stateMachine.js';
+import { getPreparationRects, getSpellButtonRects } from '../src/ui/layout.js';
 
 test('Milestone 1 config exposes preparation, match preview, and five spell placeholders', () => {
   assert.equal(CONFIG.states.preparation, 'preparation');
@@ -38,14 +38,25 @@ test('state machine switches between preparation and static match preview', () =
   assert.equal(state.phase, CONFIG.states.preparation);
 });
 
+test('state machine starts playable match through countdown', () => {
+  const state = createInitialGameState(CONFIG);
+  assert.equal(startMatchCountdown(state, null, CONFIG), true);
+  assert.equal(state.previousPhase, CONFIG.states.preparation);
+  assert.equal(state.phase, CONFIG.match.countdownPhase);
+  assert.equal(state.countdownRemaining, CONFIG.match.countdownSeconds);
+  assert.equal(state.matchRemaining, CONFIG.match.durationSeconds);
+});
+
 test('layout helpers expose Canvas button regions for preparation and match previews', () => {
   const prepRects = getPreparationRects(CONFIG);
   assert.equal(prepRects.eggDrawing.width, CONFIG.layout.eggDrawingWidth);
   assert.equal(prepRects.confirmLoadoutButton.width, CONFIG.layout.prepButtonWidth);
-
-  const actionButtons = getActionButtonRects(CONFIG);
-  assert.equal(actionButtons.length, Object.keys(CONFIG.actions).length);
-  assert.equal(actionButtons[CONFIG.match.minHp].kind, 'basic-action');
+  assert.equal(prepRects.nameField.width, CONFIG.layout.spellNameFieldWidth);
+  assert.equal(prepRects.nameField.height, CONFIG.layout.spellNameFieldHeight);
+  assert.equal(prepRects.cycleNameButton.width, CONFIG.layout.cycleNameButtonWidth);
+  assert.equal(prepRects.cycleNameButton.y, prepRects.nameField.y);
+  assert.equal(prepRects.effectPreviewPanel.height, CONFIG.layout.effectPreviewPanelHeight);
+  assert.equal(prepRects.effectPreviewPanel.y > prepRects.nameField.y + prepRects.nameField.height, true);
 
   const spellButtons = getSpellButtonRects(CONFIG);
   assert.equal(spellButtons.length, CONFIG.spells.perLoadout);

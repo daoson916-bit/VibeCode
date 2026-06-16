@@ -1,8 +1,8 @@
 import { CONFIG } from '../config.js';
-import { commandTextForAction, getActionByKey, truncateTranscript } from '../combat/actions.js';
-import { attemptCommand } from '../combat/matchRules.js';
+import { applyCast } from '../combat/casting.js';
 import { resetGameState } from '../core/gameState.js';
-import { showMatchPreview, showPreparation } from '../core/stateMachine.js';
+import { showPreparation } from '../core/stateMachine.js';
+import { normalizeSpellName } from '../spells/spellFactory.js';
 import { addPatternPoint, clearDraftPattern, confirmLoadout, cycleDraftName, editDraftName, randomizeDraftPattern, saveDraftSpell, selectSpellType, randomizeSpellType, prepareAllSpells } from '../states/preparationState.js';
 import { getEggGridPoints, getPreparationRects } from '../ui/layout.js';
 
@@ -36,13 +36,43 @@ function getSpeechRecognitionConstructor(windowRef) {
   return windowRef.SpeechRecognition ?? windowRef.webkitSpeechRecognition ?? null;
 }
 
+function truncateTranscript(text, config = CONFIG) {
+  const value = String(text || '').trim();
+  if (value.length <= config.input.maxTranscriptCharacters) return value;
+  return `${value.slice(config.match.minHp, config.input.maxTranscriptCharacters)}...`;
+}
+
 export function createInputController({ canvas, state, logger, random = Math.random, config = CONFIG, windowRef = window }) {
   const SpeechRecognition = getSpeechRecognitionConstructor(windowRef);
   let recognizer = null;
 
-  function submitBasicAction(actionId, source) {
-    const command = commandTextForAction(actionId, config);
-    return attemptCommand(state, config.match.playerId, command, source, logger, config);
+  function submitSpell(slotIndex, source) {
+    const actor = state.sides[config.match.playerId];
+    const spell = actor.spellLoadout[slotIndex] ?? null;
+    actor.latestCommand = spell?.name ?? config.combat.unknownCommandReason;
+    const cooldownMultiplier = source === 'voice' ? config.spellCasting.voiceCooldownMultiplier : config.spellCasting.buttonCooldownMultiplier;
+    const result = applyCast(actor, spell, state, cooldownMultiplier, config);
+    actor.latestReason = result.success ? config.combat.successReason : result.reason;
+    actor.actionLabel = result.success ? spell.name : result.reason;
+    actor.actionLabelSeconds = config.combat.failedFeedbackSeconds;
+    actor.failedLabelSeconds = result.success ? config.match.minHp : config.combat.failedFeedbackSeconds;
+    logger?.info('Spell input received', { source, slotIndex, spell: spell?.name, result });
+    return result;
+  }
+
+  function submitVoiceSpell(transcript) {
+    const actor = state.sides[config.match.playerId];
+    const heardName = normalizeSpellName(transcript).toLowerCase();
+    const slotIndex = actor.spellLoadout.findIndex((spell) => normalizeSpellName(spell.name).toLowerCase() === heardName);
+    if (slotIndex < config.match.minHp) {
+      actor.latestCommand = transcript || config.combat.unknownCommandReason;
+      actor.latestReason = config.combat.unknownCommandReason;
+      actor.actionLabel = config.combat.unknownCommandReason;
+      actor.failedLabelSeconds = config.combat.failedFeedbackSeconds;
+      logger?.warn('Voice spell not found', { transcript });
+      return { success: false, reason: config.combat.unknownCommandReason };
+    }
+    return submitSpell(slotIndex, 'voice');
   }
 
   function restartMatch(source) {
@@ -81,7 +111,7 @@ export function createInputController({ canvas, state, logger, random = Math.ran
         const transcript = event.results?.[config.match.minHp]?.[config.match.minHp]?.transcript ?? '';
         const clipped = truncateTranscript(transcript, config);
         state.voiceStatus = `Heard: ${clipped}`;
-        attemptCommand(state, config.match.playerId, transcript, 'voice', logger, config);
+        submitVoiceSpell(transcript);
       };
     }
 
@@ -144,8 +174,8 @@ export function createInputController({ canvas, state, logger, random = Math.ran
       return;
     }
 
-    if (button.kind === 'basic-action') {
-      submitBasicAction(button.actionId, 'canvas-button');
+    if (button.kind === 'prepared-spell') {
+      submitSpell(button.spellIndex, 'canvas-button');
       return;
     }
 
@@ -170,16 +200,17 @@ export function createInputController({ canvas, state, logger, random = Math.ran
   }
 
   function handleKeyboard(event) {
-    if (state.phase === config.states.preparation && editDraftName(state, event.key, logger, config)) {
+    if (state.phase === config.states.preparation && state.preparation.nameFieldFocused) {
+      editDraftName(state, event.key, logger, config);
       event.preventDefault();
       return;
     }
 
     const key = String(event.key).toLowerCase();
-    const actionId = getActionByKey(key, config);
-    if (actionId) {
+    const slotIndex = Number.parseInt(key, 10) - config.patterns.firstPointId;
+    if (Number.isInteger(slotIndex) && slotIndex >= config.match.minHp && slotIndex < config.spells.perLoadout) {
       event.preventDefault();
-      submitBasicAction(actionId, 'keyboard');
+      submitSpell(slotIndex, 'keyboard');
       return;
     }
 
@@ -210,7 +241,8 @@ export function createInputController({ canvas, state, logger, random = Math.ran
       windowRef.removeEventListener('keydown', handleKeyboard);
       logger?.info('Input handlers detached');
     },
-    submitBasicAction,
+    submitSpell,
+    submitVoiceSpell,
     startVoiceRecognition,
     restartMatch
   };

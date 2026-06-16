@@ -7,7 +7,7 @@ import { analyzePattern, generateRandomPattern, getPiercePercent, getWeightBand 
 import { createSpell } from '../src/spells/spellFactory.js';
 import { getNameSimilarity, validateLoadout, validateSpellName } from '../src/spells/spellLoadout.js';
 import { getSpellEffectPreview } from '../src/spells/spellRules.js';
-import { addPatternPoint, confirmLoadout, randomizeDraftPattern, saveDraftSpell, selectSpellType, setDraftName } from '../src/states/preparationState.js';
+import { addPatternPoint, confirmLoadout, cycleDraftName, randomizeDraftPattern, saveDraftSpell, selectSpellType, setDraftName } from '../src/states/preparationState.js';
 
 test('pattern analysis counts connections, weight bands, cost, secondary effect, and pierce', () => {
   assert.equal(getWeightBand(1, CONFIG), CONFIG.patterns.lightLabel);
@@ -34,27 +34,50 @@ test('crossed and closed patterns expose penalties, bonuses, and instability', (
 
   const closed = analyzePattern([1, 2, 5, 1], CONFIG);
   assert.equal(closed.hasClosedBonus, true);
-  assert.match(getSpellEffectPreview('Attack', closed, CONFIG), /damage/);
+  const preview = getSpellEffectPreview('Attack', closed, CONFIG);
+  assert.match(preview, /damage/);
+  assert.match(preview, /cost/);
+  assert.match(preview, /pierce/);
 });
 
 test('spell creation derives type preview and energy cost from pattern analysis', () => {
-  const spell = createSpell({ name: 'Long Fire', type: 'Attack', patternPoints: [1, 2, 3] }, CONFIG);
-  assert.equal(spell.name, 'Long Fire');
+  const spell = createSpell({ name: 'Light Slash', type: 'Attack', patternPoints: [1, 2, 3] }, CONFIG);
+  assert.equal(spell.name, 'Light Slash');
+  assert.equal(spell.family, 'Light');
   assert.equal(spell.type, 'Attack');
   assert.equal(spell.weightBand, CONFIG.patterns.lightLabel);
   assert.equal(spell.energyCost, CONFIG.spellCosts.Light);
   assert.match(spell.effectPreview, /damage/);
+  assert.match(spell.effectPreview, /cost/);
 });
 
 test('loadout validation rejects duplicate and too-similar spell names', () => {
   const existing = [
-    { name: 'Long Fire', filled: true },
-    { name: 'Son Guard', filled: true }
+    { name: 'Light Slash', filled: true },
+    { name: 'Fire Guard', filled: true }
   ];
-  assert.equal(validateSpellName('Long Fire', existing, CONFIG).ok, false);
-  assert.equal(getNameSimilarity('Long Fire', 'Long Fyre') >= CONFIG.spells.similarNameThreshold, true);
-  assert.equal(validateSpellName('Long Fyre', existing, CONFIG).ok, false);
-  assert.equal(validateSpellName('Thuy Heal', existing, CONFIG).ok, true);
+  assert.equal(validateSpellName('Light Slash', existing, CONFIG).ok, false);
+  assert.equal(getNameSimilarity('Light Slash', 'Lite Slash') >= CONFIG.spells.similarNameThreshold, true);
+  assert.equal(validateSpellName('Lite Slash', existing, CONFIG).ok, false);
+  assert.equal(validateSpellName('Water Heal', existing, CONFIG).ok, true);
+});
+
+test('generated spell names combine element and selected move type', () => {
+  const state = createInitialGameState(CONFIG);
+  assert.equal(state.preparation.draftSpellName, 'Light Slash');
+
+  selectSpellType(state, 'Defense', null, CONFIG);
+  assert.equal(state.preparation.draftSpellName, 'Light Guard');
+
+  cycleDraftName(state, null, CONFIG);
+  assert.equal(state.preparation.draftSpellName, 'Fire Guard');
+
+  selectSpellType(state, 'Attack', null, CONFIG);
+  assert.equal(state.preparation.draftSpellName, 'Fire Slash');
+
+  setDraftName(state, 'My Custom', null, CONFIG);
+  selectSpellType(state, 'Support', null, CONFIG);
+  assert.equal(state.preparation.draftSpellName, 'My Custom');
 });
 
 test('preparation flow draws, randomizes, saves five spells, and confirms loadout', () => {
@@ -69,7 +92,7 @@ test('preparation flow draws, randomizes, saves five spells, and confirms loadou
 
   CONFIG.spells.types.forEach((type, index) => {
     selectSpellType(state, type, null, CONFIG);
-    setDraftName(state, CONFIG.spells.nameCycle[index], null, CONFIG);
+    setDraftName(state, CONFIG.spells.defaultPlayerNames[index], null, CONFIG);
     state.preparation.draftPatternPoints = generateRandomPattern(() => 0.31 + index * 0.01, CONFIG);
     const result = saveDraftSpell(state, null, CONFIG);
     assert.equal(result.ok, true);
@@ -77,10 +100,11 @@ test('preparation flow draws, randomizes, saves five spells, and confirms loadou
 
   assert.equal(validateLoadout(state.sides[CONFIG.match.playerId].spellLoadout, CONFIG).ok, true);
   assert.equal(confirmLoadout(state, null, CONFIG).ok, true);
-  assert.equal(state.phase, CONFIG.states.matchPreview);
+  assert.equal(state.phase, CONFIG.match.countdownPhase);
+  assert.equal(state.countdownRemaining, CONFIG.match.countdownSeconds);
 });
 
-test('spell name editing is separate from basic action shortcuts', () => {
+test('spell name editing blocks number keys from casting spell slots', () => {
   const state = createInitialGameState(CONFIG);
   const handlers = {};
   const fakeCanvas = {
@@ -100,13 +124,13 @@ test('spell name editing is separate from basic action shortcuts', () => {
   state.preparation.draftSpellName = '';
   let prevented = false;
   handlers.keydown({
-    key: CONFIG.actions.attack.key,
+    key: '1',
     preventDefault() {
       prevented = true;
     }
   });
 
   assert.equal(prevented, true);
-  assert.equal(state.preparation.draftSpellName, CONFIG.actions.attack.key);
+  assert.equal(state.preparation.draftSpellName, '');
   assert.equal(state.sides[CONFIG.match.playerId].latestReason, '');
 });

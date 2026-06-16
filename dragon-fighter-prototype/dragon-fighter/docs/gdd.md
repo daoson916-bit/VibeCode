@@ -4,7 +4,7 @@
 
 Dragon Fighter: Egg Spell Forge is a Canvas-only casual 1v1 dragon duel prototype. The player prepares five custom dragon-egg spells, then uses those prepared spells as the main combat skills.
 
-The current design direction is spell-first combat. The older basic action layer (`Attack`, `Defence`, `Block`, `Skill` as separate commands) is no longer part of the target design and should be phased out of combat implementation.
+The current design direction is spell-first combat. Prepared spell names, spell buttons, and spell-slot keys are the only combat input model.
 
 ## Design Pillars
 
@@ -24,23 +24,20 @@ The current design direction is spell-first combat. The older basic action layer
 - Pattern summary with weight, energy cost, piercing, secondary effect, closed bonus, and instability.
 - Type-specific effect preview.
 - Five spell slots with duplicate and too-similar name rejection.
-- Loadout confirmation into a match preview.
-- Match preview with dragons, player panels, HP/energy display, state labels, latest feedback, spell buttons, and microphone status.
+- Loadout confirmation into countdown, then active match.
+- Match screen with dragons, player panels, HP/energy display, state labels, latest feedback, spell buttons, and microphone status.
 
 ## Current Limitations
 
-- Confirming a loadout currently opens a match preview, not a playable spell-combat match.
-- Prepared spell buttons do not yet cast combat effects.
-- Voice recognition still routes through older command handling and needs to be converted to spell-name casting.
-- The code still contains a legacy basic-action combat scaffold used by older tests and preview controls. This is implementation debt, not current design.
-- AI spell casting, result flow, restart flow, and full match timing are not complete.
+- Spell casting currently spends energy and starts cooldowns, but combat effects still need to be fully applied after casting.
+- AI spell casting, restart polish, and full effect-driven match resolution are not complete.
 
 ## Spell Preparation Rules
 
 Each player brings exactly five prepared spells into combat. A spell has:
 
-- Spell name.
-- Spell family/name identity.
+- Spell name in `Element Move` form, such as `Light Slash`.
+- Element identity from the first word of the spell name.
 - Spell type: Attack, Defense, Support, Control, Utility.
 - 9-dot pattern.
 - Weight band.

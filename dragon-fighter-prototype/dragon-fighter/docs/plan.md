@@ -21,7 +21,7 @@ Set up the spell casting pipeline, energy system, cooldown system, damage/shield
 ### End-User Test Checklist
 
 - [ ] App loads and opens to the preparation screen (existing).
-- [ ] After confirming a loadout, the match preview displays both dragons, HP bars, energy bars, cooldown chips for all five spell slots, a timer, and placeholder latest-feedback labels.
+- [ ] After confirming a loadout, the match screen displays both dragons, HP bars, energy bars, cooldown chips for all five spell slots, a timer, and placeholder latest-feedback labels.
 - [ ] HP, energy, cooldowns, and feedback labels update when the developer runs the test suite or manual sim (not from user input yet).
 - [ ] Run `npm test` and verify all new tests pass: spell cost calc, pattern weight → cost, energy regen and clamp, cooldown ready/not-ready, damage → HP with clamp, shield + piercing, heal with clamp.
 - [ ] The browser console shows structured logs at state boot, state transition, and test simulation steps (per tdd.md logging requirements).
@@ -64,7 +64,7 @@ Required work:
     - State machine transitions (countdown → active, active → result).
     - Config shape (no undefined keys, all combat keys present and commented).
 
-12. **Build and Diagnostics**: Run `npm test`, verify all tests pass. Run `npm run build`. Start the dev server. Load the page, confirm the match preview displays without errors, check console for structured logs. Commit with message: `feat: combat foundation with energy, cooldown, and damage resolver`.
+12. **Build and Diagnostics**: Run `npm test`, verify all tests pass. Run `npm run build`. Start the dev server. Load the page, confirm the match screen displays without errors, check console for structured logs. Commit with message: `feat: combat foundation with energy, cooldown, and damage resolver`.
 
 IMPORTANT: Run this checklist BEFORE reporting done:
 - [ ] Tests pass: `npm test`
@@ -85,15 +85,15 @@ Wire prepared spell casting to combat effects. The player casts spells via voice
 
 ### End-User Test Checklist
 
-- [ ] After confirming a loadout, clicking a spell button in the match preview casts that spell (if it is ready and has enough energy).
-- [ ] Successful spell cast: damage/shield/heal effect applies to the target, HP or shield updates, cooldown chip grays out and counts down, player energy drops by spell cost, latest feedback shows the spell name and effect (e.g., "Inferno Blast hit for 15 damage").
+- [ ] After confirming a loadout and reaching active match, clicking a spell button casts that spell (if it is ready and has enough energy).
+- [ ] Successful spell cast: damage/shield/heal effect applies to the target, HP or shield updates, cooldown chip grays out and counts down, player energy drops by spell cost, latest feedback shows the spell name and effect (e.g., "Light Slash hit for 15 damage").
 - [ ] Failed spell cast: button click or voice phrase is rejected (e.g., "not enough energy"), no effect applies, cooldown does not start, energy does not drop, latest feedback shows the reason in red/warning color, and the cast is logged as a failure.
 - [ ] Energy regenerates visibly every frame. Energy bar fills slowly during no-cast periods. Energy is clamped at max.
 - [ ] Cooldown chips update every frame: "Ready" label or bright green when cooldown ≤ 0, gray with countdown timer when cooldown > 0.
 - [ ] When the player casts an Attack spell, the AI's HP decreases. When the player casts a Defense spell, a shield appears on the player's dragon and absorbs incoming damage. When the player casts Support, the player's HP increases (clamped at max). Control and Utility spells change AI behavior or apply timers (visible in latest feedback).
 - [ ] Dragons display hit feedback: shake on damage, bob on heal, glow/flash on shield gain.
 - [ ] Match timer counts down from config.match.durationSeconds. When timer reaches 0, the match ends and shows a result (Win if AI HP ≤ 0, Draw if both HP ≤ 0 or time expires with both alive).
-- [ ] Voice casting: say the full spell name (e.g., "Inferno Blast"). If recognized and valid, the spell casts. If not recognized or invalid (e.g., spell is on cooldown), latest feedback shows the reason. Microphone status label updates (Listening / Ready / Error).
+- [ ] Voice casting: say the full spell name (e.g., "Light Slash"). If recognized and valid, the spell casts. If not recognized or invalid (e.g., spell is on cooldown), latest feedback shows the reason. Microphone status label updates (Listening / Ready / Error).
 - [ ] Spell button casting with keyboard: pressing a configured key (e.g., 1–5) casts the corresponding spell slot.
 - [ ] Run `npm test` and verify all player casting tests pass: cast validation for voice/button, energy cost deduction, cooldown start, effect application, energy clamp, cooldown clamp, game-end conditions.
 - [ ] Browser console shows a structured log for every cast attempt (success or failure with reason).
@@ -108,7 +108,7 @@ Read tdd.md and gdd.md. Your goal is to make the player's prepared spells cast a
 
 Required work:
 
-1. **Input Mapping for Spells**: Update src/input/inputController.js to emit spell-cast intents instead of legacy action commands. For voice: emit { type: 'voice-spell', spellName: '...' }. For button clicks: map to spell slot index and emit { type: 'button-spell', slotIndex: 0 }. For keyboard: map keys 1–5 to slots and emit { type: 'keyboard-spell', slotIndex: 0 }. Do not apply any effects in the input module.
+1. **Input Mapping for Spells**: `src/input/inputController.js` maps voice to prepared spell names, Canvas spell buttons to slot indexes, and keyboard keys 1-5 to spell slots.
 
 2. **Spell Casting Pipeline (Active)**: Create or extend src/combat/casting.js. Implement a function castSpell(actor, spell, matchState, config) that:
    - Validates: actor exists, match is active, spell exists, actor has energy, cooldown ready, not voice-locked.
@@ -188,7 +188,7 @@ Required work:
     - Match end conditions (HP ≤ 0, timer ≤ 0, tiebreaker).
     - Result determination (Win, Lose, Draw).
 
-13. **Build and Diagnostics**: Run `npm test`, verify all tests pass. Run `npm run build`. Start dev server. Load the page in browser, confirm loadout confirms to match preview. Cast a spell: click button or say spell name. Verify effect applies, HP/energy/cooldown update, feedback displays, dragon animates. Verify timer counts down. Verify result screen on defeat. Check console for structured logs. Commit with message: `feat: player spell casting with effects and match loop`.
+13. **Build and Diagnostics**: Run `npm test`, verify all tests pass. Run `npm run build`. Start dev server. Load the page in browser, confirm loadout starts countdown and enters active match. Cast a spell: click button or say spell name. Verify effect applies, HP/energy/cooldown update, feedback displays, dragon animates. Verify timer counts down. Verify result screen on defeat. Check console for structured logs. Commit with message: `feat: player spell casting with effects and match loop`.
 
 IMPORTANT: Run this checklist BEFORE reporting done:
 - [ ] Tests pass: `npm test`
@@ -214,9 +214,9 @@ Implement AI spell decisions using the same spell, energy, cooldown, and damage 
 
 ### End-User Test Checklist
 
-- [ ] After confirming a loadout, the match preview shows a countdown overlay (e.g., "3... 2... 1... Fight!") and a timer. Both dragons are visible and inactive during countdown.
+- [ ] After confirming a loadout, the match screen shows a countdown overlay (e.g., "3... 2... 1... Fight!") and a timer. Both dragons are visible and inactive during countdown.
 - [ ] When countdown ends, the match becomes active. Both dragons are now fighting. Player can cast spells; AI casts spells automatically.
-- [ ] AI casts are logged and displayed: AI latest feedback shows spell name and effect (e.g., "Frostbolt slowed you for 5 seconds").
+- [ ] AI casts are logged and displayed: AI latest feedback shows spell name and effect (e.g., "Ice Snare slowed you for 5 seconds").
 - [ ] AI respects energy: does not cast when energy is insufficient. AI casts less frequently when energy is low.
 - [ ] AI respects cooldown: does not cast a spell that is on cooldown. Visible cooldown chip update on AI spell slots.
 - [ ] AI casting priority (configurable): when AI HP is below 30%, favor Defense spells. When player HP is high and AI HP is mid-range, favor Attack spells. When AI has energy surplus, consider Utility spells. When combat is neutral, cycle through spell types.
@@ -297,8 +297,7 @@ Required work:
    - Draw AI spell slot labels (AI's fifth prepared spell, AI's fourth prepared spell, etc.).
 
 8. **State Machine**: Ensure src/core/stateMachine.js supports transitions:
-   - preparation → match-preview (on loadout confirm).
-   - match-preview → countdown (on match start or via auto-transition if no user input delay).
+   - preparation → countdown (on loadout confirm).
    - countdown → active (when countdownTimer expires).
    - active → result (when defeat or timer expires).
    - result → preparation (on restart input).

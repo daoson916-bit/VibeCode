@@ -1,15 +1,32 @@
 import { CONFIG } from '../config.js';
-import { showMatchPreview } from '../core/stateMachine.js';
+import { startMatchCountdown } from '../core/stateMachine.js';
 import { addPointToPattern, analyzePattern, generateRandomPattern } from '../spells/patternAnalyzer.js';
 import { createSpell, normalizeSpellName } from '../spells/spellFactory.js';
 import { nextOpenSlotIndex, validateLoadout, validateSpellName } from '../spells/spellLoadout.js';
-import { formatPatternSummary, getSpellEffectPreview } from '../spells/spellRules.js';
+import { getSpellEffectPreview } from '../spells/spellRules.js';
 import { createSeededRandom } from '../core/random.js';
+
+function moveNames(config) {
+  return Object.values(config.spells.moveNamesByType);
+}
+
+function elementFromName(name, config) {
+  const [element] = normalizeSpellName(name).split(' ');
+  return config.spells.elements.includes(element) ? element : config.spells.elements[config.match.minHp];
+}
+
+function generatedSpellName(element, spellType, config) {
+  return `${element} ${config.spells.moveNamesByType[spellType] ?? config.spells.moveNamesByType.Attack}`;
+}
+
+function isGeneratedSpellName(name, config) {
+  const [element, move] = normalizeSpellName(name).split(' ');
+  return config.spells.elements.includes(element) && moveNames(config).includes(move);
+}
 
 export function refreshPreparationPreview(state, logger, config = CONFIG) {
   const analysis = analyzePattern(state.preparation.draftPatternPoints, config);
   state.preparation.draftAnalysis = analysis;
-  state.preparation.patternSummary = formatPatternSummary(analysis, config);
   state.preparation.effectPreview = getSpellEffectPreview(state.preparation.selectedSpellType, analysis, config);
   logger?.info('Pattern analyzed', analysis);
   return analysis;
@@ -38,7 +55,10 @@ export function randomizeDraftPattern(state, random, logger, config = CONFIG) {
 
 export function selectSpellType(state, spellType, logger, config = CONFIG) {
   if (!config.spells.types.includes(spellType)) return false;
+  const shouldSyncName = isGeneratedSpellName(state.preparation.draftSpellName, config);
+  const element = elementFromName(state.preparation.draftSpellName, config);
   state.preparation.selectedSpellType = spellType;
+  if (shouldSyncName) state.preparation.draftSpellName = generatedSpellName(element, spellType, config);
   logger?.info('Spell type selected', { spellType });
   refreshPreparationPreview(state, logger, config);
   return true;
@@ -46,7 +66,8 @@ export function selectSpellType(state, spellType, logger, config = CONFIG) {
 
 export function cycleDraftName(state, logger, config = CONFIG) {
   state.preparation.nameCycleIndex = (state.preparation.nameCycleIndex + config.patterns.firstPointId) % config.spells.nameCycle.length;
-  state.preparation.draftSpellName = config.spells.nameCycle[state.preparation.nameCycleIndex];
+  const element = config.spells.nameCycle[state.preparation.nameCycleIndex];
+  state.preparation.draftSpellName = generatedSpellName(element, state.preparation.selectedSpellType, config);
   state.preparation.feedback = config.text.prepReadyFeedback;
   logger?.info('Spell name cycled', { name: state.preparation.draftSpellName });
   return state.preparation.draftSpellName;
@@ -119,7 +140,7 @@ export function confirmLoadout(state, logger, config = CONFIG) {
 
   state.preparation.loadoutConfirmed = true;
   logger?.info('Loadout confirmed');
-  showMatchPreview(state, logger, config);
+  startMatchCountdown(state, logger, config);
   return validation;
 }
 

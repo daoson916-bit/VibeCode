@@ -192,33 +192,9 @@ export function updateEffectDurations(actor, deltaSeconds, config = CONFIG) {
   }
 }
 
-// Legacy functions for backward compatibility with basic actions
-
-export function resolveIncomingDamage(baseDamage, target, config = CONFIG) {
-  if (target.activeBlockSeconds > config.match.minHp) {
-    return {
-      finalDamage: baseDamage * config.combat.blockDamageMultiplier,
-      preventedBy: config.actions.block.label
-    };
-  }
-
-  if (target.activeDefenceSeconds > config.match.minHp) {
-    return {
-      finalDamage: baseDamage * config.combat.defenceDamageMultiplier,
-      preventedBy: config.actions.defence.label
-    };
-  }
-
-  return {
-    finalDamage: baseDamage,
-    preventedBy: null
-  };
-}
-
 export function normalizeDamageAmount(amount, config = CONFIG) {
   if (config.shieldAndDamage.damageRoundingMode === 'round') return Math.round(amount);
   if (config.shieldAndDamage.damageRoundingMode === 'floor') return Math.floor(amount);
   if (config.shieldAndDamage.damageRoundingMode === 'ceil') return Math.ceil(amount);
   return amount;
 }
-

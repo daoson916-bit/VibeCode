@@ -63,7 +63,7 @@ export function applyCast(actor, spell, matchState, cooldownMultiplier = 1.0, co
   // Validate first
   const validation = validateSpellCast(actor, spell, matchState, config);
   if (!validation.success) {
-    log(`Cast failed: ${actor.id} tried ${spell.name || 'unknown'} - Reason: ${validation.reason}`, {
+    log(`Cast failed: ${actor?.id || 'unknown'} tried ${spell?.name || 'unknown'} - Reason: ${validation.reason}`, {
       category: 'combat'
     });
     return { success: false, reason: validation.reason };

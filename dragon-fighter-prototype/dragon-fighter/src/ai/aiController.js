@@ -1,31 +1,17 @@
 import { CONFIG } from '../config.js';
-import { commandTextForAction } from '../combat/actions.js';
-import { isActionReady } from '../combat/cooldowns.js';
-import { attemptCommand } from '../combat/matchRules.js';
+import { applyCast } from '../combat/casting.js';
 
-export function chooseAiAction(state, random = Math.random, config = CONFIG) {
+export function chooseAiSpellIndex(state, random = Math.random, config = CONFIG) {
   const ai = state.sides[config.match.aiId];
-  const player = state.sides[config.match.playerId];
 
   if (state.phase !== config.match.activePhase || ai.defeated) return null;
 
-  const blockReady = isActionReady(ai, 'block', config);
-  const defenceReady = isActionReady(ai, 'defence', config);
-  const attackReady = isActionReady(ai, 'attack', config);
-  const skillReady = isActionReady(ai, 'skill', config);
+  const readySpells = ai.spellLoadout
+    .map((spell, index) => ({ spell, index }))
+    .filter(({ spell }) => spell && spell.filled !== false && (spell.cooldownRemaining ?? config.match.minHp) <= config.match.minHp && ai.energy >= (spell.energyCost ?? config.match.minEnergy));
 
-  if (player.lastSuccessfulAction === 'skill') {
-    if (blockReady && random() < config.ai.blockChanceAgainstSkill) return 'block';
-    if (defenceReady) return 'defence';
-    if (blockReady) return 'block';
-  }
-
-  if (skillReady && random() < config.ai.skillChanceWhenReady) return 'skill';
-  if (attackReady) return 'attack';
-  if (defenceReady && random() < config.ai.defenceChance) return 'defence';
-  if (blockReady) return 'block';
-  if (defenceReady) return 'defence';
-  return null;
+  if (readySpells.length === config.match.minHp) return null;
+  return readySpells[Math.floor(random() * readySpells.length)].index;
 }
 
 export function updateAi(state, deltaSeconds, random, logger, config = CONFIG) {
@@ -37,14 +23,20 @@ export function updateAi(state, deltaSeconds, random, logger, config = CONFIG) {
   if (state.aiActionTimer > config.match.minHp) return null;
 
   state.aiActionTimer = config.ai.actionIntervalSeconds;
-  const actionId = chooseAiAction(state, random, config);
-  if (!actionId) {
+  const spellIndex = chooseAiSpellIndex(state, random, config);
+  if (spellIndex === null) {
     ai.latestCommand = config.ai.waitingLabel;
-    logger?.info('AI skipped action because no action was available');
+    logger?.info('AI skipped spell because no spell was available');
     return null;
   }
 
-  const command = commandTextForAction(actionId, config);
-  logger?.info('AI selected action', { actionId, command });
-  return attemptCommand(state, config.match.aiId, command, 'ai', logger, config);
+  const spell = ai.spellLoadout[spellIndex];
+  const result = applyCast(ai, spell, state, config.spellCasting.buttonCooldownMultiplier, config);
+  ai.latestCommand = spell.name;
+  ai.latestReason = result.success ? config.combat.successReason : result.reason;
+  ai.actionLabel = result.success ? spell.name : result.reason;
+  ai.actionLabelSeconds = config.combat.failedFeedbackSeconds;
+  ai.failedLabelSeconds = result.success ? config.match.minHp : config.combat.failedFeedbackSeconds;
+  logger?.info('AI selected spell', { spellIndex, spell: spell.name, result });
+  return result;
 }

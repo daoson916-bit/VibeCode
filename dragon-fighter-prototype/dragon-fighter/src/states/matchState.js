@@ -1,7 +1,8 @@
 import { CONFIG } from '../config.js';
 import { updateAi } from '../ai/aiController.js';
-import { updateActiveActionTimers, updateCooldowns } from '../combat/cooldowns.js';
+import { updateFeedbackTimers, updateSpellCooldowns } from '../combat/cooldowns.js';
 import { endMatchIfNeeded } from '../combat/matchRules.js';
+import { regenEnergy, updateActorEffects } from '../core/gameState.js';
 
 function updateEffects(state, deltaSeconds, config) {
   state.hitEffects.forEach((effect) => {
@@ -19,8 +20,12 @@ function updateEffects(state, deltaSeconds, config) {
 
 function updateSides(state, deltaSeconds, config) {
   Object.values(state.sides).forEach((side) => {
-    updateCooldowns(side, deltaSeconds, config);
-    updateActiveActionTimers(side, deltaSeconds, config);
+    updateSpellCooldowns(side, deltaSeconds, config);
+    updateFeedbackTimers(side, deltaSeconds, config);
+    if (state.phase === config.match.activePhase) {
+      regenEnergy(side, deltaSeconds, config);
+      updateActorEffects(side, deltaSeconds, config);
+    }
   });
 }
 

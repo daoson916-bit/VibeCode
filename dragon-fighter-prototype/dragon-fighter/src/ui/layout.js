@@ -1,4 +1,4 @@
-import { ACTION_IDS, CONFIG } from '../config.js';
+import { CONFIG } from '../config.js';
 
 export function centeredX(width, config = CONFIG) {
   return (config.canvas.width - width) / config.match.sideCount;
@@ -24,51 +24,69 @@ export function getPreparationRects(config = CONFIG) {
       width: config.layout.spellSlotsWidth,
       height: config.layout.spellSlotsHeight
     },
+    patternControls: {
+      x: config.layout.outerPadding,
+      y: config.layout.prepUtilityPanelY,
+      width: config.canvas.width - config.layout.outerPadding * config.match.sideCount,
+      height: config.layout.prepUtilityPanelHeight
+    },
+    finalControls: {
+      x: config.layout.outerPadding,
+      y: config.layout.prepFinalPanelY,
+      width: config.canvas.width - config.layout.outerPadding * config.match.sideCount,
+      height: config.layout.prepFinalPanelHeight
+    },
     randomPatternButton: {
-      x: config.layout.forgePanelX + config.layout.outerPadding,
-      y: config.layout.forgePanelY + config.layout.forgePanelHeight - config.layout.prepButtonHeight - config.layout.outerPadding,
+      x: centeredX(config.layout.prepButtonWidth * config.match.sideCount + config.layout.saveSpellButtonWidth + config.layout.spellTypeButtonGap * config.match.sideCount, config),
+      y: config.layout.prepUtilityPanelY + (config.layout.prepUtilityPanelHeight - config.layout.prepButtonHeight) / config.match.sideCount,
       width: config.layout.prepButtonWidth,
       height: config.layout.prepButtonHeight
     },
     confirmLoadoutButton: {
-      x: config.layout.spellSlotsX + config.layout.outerPadding,
-      y: config.layout.spellSlotsY + config.layout.spellSlotsHeight - config.layout.prepButtonHeight - config.layout.outerPadding,
+      x: centeredX(config.layout.prepButtonWidth * config.match.sideCount + config.layout.saveSpellButtonWidth + config.layout.spellTypeButtonGap * config.match.sideCount, config) + config.layout.saveSpellButtonWidth + config.layout.prepButtonWidth + config.layout.spellTypeButtonGap * config.match.sideCount,
+      y: config.layout.prepFinalPanelY + (config.layout.prepFinalPanelHeight - config.layout.prepButtonHeight) / config.match.sideCount,
       width: config.layout.prepButtonWidth,
       height: config.layout.prepButtonHeight
     },
     nameField: {
       x: config.layout.forgePanelX + config.layout.outerPadding,
-      y: config.layout.forgePanelY + config.layout.statusPanelHeight + config.layout.outerPadding + config.fonts.normalSize,
-      width: config.layout.forgePanelWidth - config.layout.outerPadding * config.match.sideCount,
+      y: config.layout.forgePanelY + config.layout.spellNameFieldY,
+      width: config.layout.spellNameFieldWidth,
       height: config.layout.spellNameFieldHeight
     },
     cycleNameButton: {
+      x: config.layout.forgePanelX + config.layout.outerPadding + config.layout.spellNameFieldWidth + config.layout.spellTypeButtonGap,
+      y: config.layout.forgePanelY + config.layout.spellNameFieldY,
+      width: config.layout.cycleNameButtonWidth,
+      height: config.layout.spellNameFieldHeight
+    },
+    effectPreviewPanel: {
       x: config.layout.forgePanelX + config.layout.outerPadding,
-      y: config.layout.forgePanelY + config.layout.statusPanelHeight + config.layout.outerPadding + config.fonts.normalSize + config.layout.spellNameFieldHeight + config.layout.cooldownChipGap,
-      width: config.layout.saveSpellButtonWidth,
-      height: config.layout.spellTypeButtonHeight
+      y: config.layout.forgePanelY + config.layout.effectPreviewPanelY,
+      width: config.layout.forgePanelWidth - config.layout.outerPadding * config.match.sideCount,
+      height: config.layout.effectPreviewPanelHeight
     },
     saveSpellButton: {
-      x: config.layout.spellSlotsX + config.layout.outerPadding,
-      y: config.layout.spellSlotsY + config.layout.spellSlotsHeight - config.layout.prepButtonHeight * config.match.sideCount - config.layout.outerPadding - config.layout.spellSlotGap,
+      x: centeredX(config.layout.prepButtonWidth * config.match.sideCount + config.layout.saveSpellButtonWidth + config.layout.spellTypeButtonGap * config.match.sideCount, config),
+      y: config.layout.prepFinalPanelY + (config.layout.prepFinalPanelHeight - config.layout.prepButtonHeight) / config.match.sideCount,
       width: config.layout.saveSpellButtonWidth,
       height: config.layout.prepButtonHeight
     },
     clearPatternButton: {
-      x: config.layout.forgePanelX + config.layout.outerPadding + config.layout.prepButtonWidth + config.layout.spellTypeButtonGap,
-      y: config.layout.forgePanelY + config.layout.forgePanelHeight - config.layout.prepButtonHeight - config.layout.outerPadding,
+      x: centeredX(config.layout.prepButtonWidth * config.match.sideCount + config.layout.saveSpellButtonWidth + config.layout.spellTypeButtonGap * config.match.sideCount, config) + config.layout.prepButtonWidth + config.layout.spellTypeButtonGap,
+      y: config.layout.prepUtilityPanelY + (config.layout.prepUtilityPanelHeight - config.layout.prepButtonHeight) / config.match.sideCount,
       width: config.layout.saveSpellButtonWidth,
       height: config.layout.prepButtonHeight
     },
     randomSpellTypeButton: {
-      x: config.layout.forgePanelX + config.layout.outerPadding,
-      y: config.layout.forgePanelY + config.layout.forgePanelHeight - config.layout.prepButtonHeight * config.match.sideCount - config.layout.outerPadding - config.layout.spellSlotGap,
+      x: centeredX(config.layout.prepButtonWidth * config.match.sideCount + config.layout.saveSpellButtonWidth + config.layout.spellTypeButtonGap * config.match.sideCount, config) + config.layout.prepButtonWidth + config.layout.saveSpellButtonWidth + config.layout.spellTypeButtonGap * config.match.sideCount,
+      y: config.layout.prepUtilityPanelY + (config.layout.prepUtilityPanelHeight - config.layout.prepButtonHeight) / config.match.sideCount,
       width: config.layout.saveSpellButtonWidth,
       height: config.layout.prepButtonHeight
     },
     prepareAllSpellsButton: {
-      x: config.layout.spellSlotsX + config.layout.outerPadding,
-      y: config.layout.spellSlotsY + config.layout.spellSlotsHeight - config.layout.prepButtonHeight * config.match.sideCount - config.layout.outerPadding - config.layout.spellSlotGap * config.match.sideCount - config.layout.prepButtonHeight - config.layout.spellSlotGap,
+      x: centeredX(config.layout.prepButtonWidth * config.match.sideCount + config.layout.saveSpellButtonWidth + config.layout.spellTypeButtonGap * config.match.sideCount, config) + config.layout.saveSpellButtonWidth + config.layout.spellTypeButtonGap,
+      y: config.layout.prepFinalPanelY + (config.layout.prepFinalPanelHeight - config.layout.prepButtonHeight) / config.match.sideCount,
       width: config.layout.prepButtonWidth,
       height: config.layout.prepButtonHeight
     }
@@ -80,7 +98,7 @@ export function getEggGridPoints(config = CONFIG) {
   const gridWidth = config.layout.eggGridGap * (config.patterns.columns - (config.match.sideCount - 1));
   const gridHeight = config.layout.eggGridGap * (config.patterns.rows - (config.match.sideCount - 1));
   const startX = rect.x + (rect.width - gridWidth) / config.match.sideCount;
-  const startY = rect.y + config.layout.outerPadding * config.match.sideCount;
+  const startY = rect.y + (rect.height - gridHeight) / config.match.sideCount + config.layout.eggGridCenterYOffset;
   const points = [];
 
   for (let row = config.match.minHp; row < config.patterns.rows; row += config.patterns.firstPointId) {
@@ -100,7 +118,7 @@ export function getEggGridPoints(config = CONFIG) {
 export function getSpellTypeButtonRects(config = CONFIG) {
   const rect = getPreparationRects(config).forgePanel;
   const startX = rect.x + config.layout.outerPadding;
-  const startY = rect.y + config.layout.outerPadding + config.fonts.normalSize + config.layout.cooldownChipGap * config.match.sideCount;
+  const startY = rect.y + config.layout.spellTypeButtonY;
   return config.spells.types.map((type, index) => ({
     id: `type-${type.toLowerCase()}`,
     kind: 'spell-type',
@@ -111,24 +129,6 @@ export function getSpellTypeButtonRects(config = CONFIG) {
       y: startY + Math.floor(index / config.layout.spellTypeButtonColumns) * (config.layout.spellTypeButtonHeight + config.layout.spellTypeButtonGap),
       width: config.layout.spellTypeButtonWidth,
       height: config.layout.spellTypeButtonHeight
-    }
-  }));
-}
-
-export function getActionButtonRects(config = CONFIG) {
-  const totalWidth = ACTION_IDS.length * config.layout.actionButtonWidth + (ACTION_IDS.length - (config.match.sideCount - 1)) * config.layout.actionButtonGap;
-  const startX = centeredX(totalWidth, config);
-
-  return ACTION_IDS.map((actionId, index) => ({
-    id: `action-${actionId}`,
-    kind: 'basic-action',
-    label: config.actions[actionId].command,
-    actionId,
-    rect: {
-      x: startX + index * (config.layout.actionButtonWidth + config.layout.actionButtonGap),
-      y: config.layout.actionButtonY,
-      width: config.layout.actionButtonWidth,
-      height: config.layout.actionButtonHeight
     }
   }));
 }

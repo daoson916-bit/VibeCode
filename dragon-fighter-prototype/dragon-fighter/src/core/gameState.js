@@ -1,11 +1,7 @@
-import { ACTION_IDS, CONFIG } from '../config.js';
+import { CONFIG } from '../config.js';
 import { analyzePattern } from '../spells/patternAnalyzer.js';
 import { createEmptySpellSlot } from '../spells/spellLoadout.js';
-import { formatPatternSummary, getSpellEffectPreview } from '../spells/spellRules.js';
-
-function createCooldownMap() {
-  return Object.fromEntries(ACTION_IDS.map((actionId) => [actionId, CONFIG.match.minHp]));
-}
+import { getSpellEffectPreview } from '../spells/spellRules.js';
 
 function createSpellLoadout(names, config) {
   return names.map((name, index) => {
@@ -26,15 +22,11 @@ function createSide(id, name, element, spellNames, config) {
     energy: config.match.startingEnergy,
     maxEnergy: config.match.maxEnergy,
     spellLoadout: createSpellLoadout(spellNames, config),
-    cooldowns: createCooldownMap(),
-    activeDefenceSeconds: CONFIG.match.minHp,
-    activeBlockSeconds: CONFIG.match.minHp,
     actionLabel: CONFIG.combat.idleLabel,
     actionLabelSeconds: CONFIG.match.minHp,
     failedLabelSeconds: CONFIG.match.minHp,
     latestCommand: id === CONFIG.match.aiId ? CONFIG.text.noAiCommand : CONFIG.text.noPlayerCommand,
     latestReason: '',
-    lastSuccessfulAction: null,
     defeated: false,
     // Spell combat properties
     shield: 0,
@@ -70,7 +62,6 @@ export function createInitialGameState(config = CONFIG) {
       draftSpellName: config.spells.defaultPlayerNames[config.match.minHp],
       draftPatternPoints: initialPattern,
       draftAnalysis: initialAnalysis,
-      patternSummary: formatPatternSummary(initialAnalysis, config),
       effectPreview: getSpellEffectPreview(config.spells.types[config.match.minHp], initialAnalysis, config),
       feedback: config.text.prepReadyFeedback,
       nameCycleIndex: config.match.minHp,
@@ -185,8 +176,6 @@ export function updateActorEffects(actor, deltaSeconds, config = CONFIG) {
 export function getVisibleStateLabel(side, config = CONFIG) {
   if (side.defeated) return config.combat.defeatedLabel;
   if (side.failedLabelSeconds > config.match.minHp) return side.actionLabel;
-  if (side.activeBlockSeconds > config.match.minHp) return config.actions.block.label;
-  if (side.activeDefenceSeconds > config.match.minHp) return config.actions.defence.label;
   if (side.actionLabelSeconds > config.match.minHp) return side.actionLabel;
   return config.combat.idleLabel;
 }

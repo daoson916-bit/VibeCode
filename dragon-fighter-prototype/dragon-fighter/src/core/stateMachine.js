@@ -19,3 +19,12 @@ export function showPreparation(state, logger, config = CONFIG) {
 export function showMatchPreview(state, logger, config = CONFIG) {
   return transitionTo(state, config.states.matchPreview, logger, config);
 }
+
+export function startMatchCountdown(state, logger, config = CONFIG) {
+  state.countdownRemaining = config.match.countdownSeconds;
+  state.fightBannerRemaining = config.match.minHp;
+  state.matchRemaining = config.match.durationSeconds;
+  state.result = null;
+  state.resultReason = '';
+  return transitionTo(state, config.match.countdownPhase, logger, config);
+}

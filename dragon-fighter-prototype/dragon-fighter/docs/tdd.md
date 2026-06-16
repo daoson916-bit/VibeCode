@@ -4,7 +4,7 @@
 
 This Technical Design Document is the implementation guide for the Canvas-only Dragon Fighter prototype. The GDD owns player-facing design intent. This TDD owns architecture, code conventions, formulas, diagnostics, tests, build rules, and tunable configuration.
 
-The current prototype has a working spell-preparation flow and match preview. The target combat direction is prepared spell skills only; the older basic action scaffold is implementation debt to remove or isolate.
+The current prototype has a working spell-preparation flow, countdown-to-active match loop, and spell-slot casting input. The combat direction is prepared spell skills only.
 
 ## Non-Negotiable Engineering Rules
 
@@ -46,7 +46,6 @@ src/
     cooldowns.js            cooldown ticking and readiness
     damageResolver.js       shield, piercing, HP, healing
     matchRules.js           result and timer rules
-    actions.js              legacy basic-action scaffold only
   ai/
     aiController.js         AI decisions using shared spell rules
   input/
@@ -64,9 +63,9 @@ Exact filenames may change, but ownership boundaries should stay clear.
 ## Runtime States
 
 - `preparation`: player draws or randomizes egg patterns, chooses type, edits name, saves five spell slots, and confirms loadout.
-- `match-preview`: current static battle layout after loadout confirmation.
-- `countdown`: future match-start countdown; combat input is ignored or visibly inactive.
-- `active`: future playable spell combat state.
+- `match-preview`: optional static battle layout state for layout inspection.
+- `countdown`: match-start countdown after loadout confirmation; combat input is visibly inactive.
+- `active`: playable spell combat state.
 - `result`: future Win, Lose, or Draw summary and restart flow.
 
 Only the active state should process its own gameplay inputs.
@@ -253,7 +252,7 @@ Every item below belongs in `src/config.js` or an equivalent single centralized 
 - `colors.panelFill`, `colors.panelStroke`, `colors.textPrimary`, `colors.textSecondary`
 - `colors.hpFill`, `colors.hpBack`, `colors.cooldownReady`, `colors.cooldownBlocked`
 - `colors.playerDragon`, `colors.aiDragon`, `colors.playerBody`, `colors.aiBody`
-- `colors.attackEffect`, `colors.skillEffect`, `colors.defenceAura`, `colors.blockAura`
+- `colors.skillEffect`, `colors.defenceAura`
 - `colors.warning`, `colors.buttonFill`, `colors.buttonHighlight`, `colors.overlayFill`
 - `fonts.family`, `fonts.overlaySize`, `fonts.largeSize`, `fonts.normalSize`, `fonts.smallSize`, `fonts.buttonSize`, `fonts.boldWeight`, `fonts.normalWeight`
 
@@ -266,9 +265,9 @@ Every item below belongs in `src/config.js` or an equivalent single centralized 
 
 ### Spell Loadout
 
-- `spells.perLoadout`, `spells.defaultFamilies`, `spells.defaultPlayerNames`, `spells.defaultAiNames`, `spells.types`
+- `spells.perLoadout`, `spells.elements`, `spells.defaultFamilies`, `spells.moveNamesByType`, `spells.defaultPlayerNames`, `spells.defaultAiNames`, `spells.types`
 - `spells.minimumNameLength`, `spells.similarNameThreshold`, `spells.nameCycle`
-- `spells.placeholderStatus`, `spells.patternSummaryPlaceholder`, `spells.effectPreviewPlaceholder`
+- `spells.placeholderStatus`, `spells.effectPreviewPlaceholder`
 
 ### Pattern Analysis
 
@@ -294,24 +293,24 @@ Every item below belongs in `src/config.js` or an equivalent single centralized 
 
 ### Casting And Cooldowns
 
-- Current legacy keys: `actions.attack.cooldownSeconds`, `actions.defence.cooldownSeconds`, `actions.block.cooldownSeconds`, `actions.skill.cooldownSeconds`, `combat.failedFeedbackSeconds`
-- Target spell-combat keys to add: voice spell cooldown, button spell cooldown, failed voice retry delay, successful voice global lockout, inactive-input feedback duration.
+- Current keys: `spellCasting.voiceCooldownMultiplier`, `spellCasting.buttonCooldownMultiplier`, `spellCasting.voiceRetryDelaySeconds`, `spellCasting.voiceGlobalLockoutSeconds`, `combat.failedFeedbackSeconds`
+- Target spell-combat keys to add: inactive-input feedback duration.
 
 ### Shield And Damage
 
-- Current legacy keys: `combat.defenceDamageMultiplier`, `combat.blockDamageMultiplier`, `combat.hpRoundingMode`
-- Target spell-combat keys to add: shield absorption rules, shield duration, piercing bypass behavior, heal clamp, damage text duration.
+- Current keys: `shieldAndDamage.shieldDurationSeconds`, `shieldAndDamage.fullDamageMultiplier`, `shieldAndDamage.damageRoundingMode`, `shieldAndDamage.hpRoundingMode`
+- Target spell-combat keys to add: additional shield absorption rules and damage text variants.
 
 ### AI
 
-- Current legacy keys: `ai.actionIntervalSeconds`, `ai.skillChanceWhenReady`, `ai.blockChanceAgainstSkill`, `ai.defenceChance`, `ai.defaultSeed`, `ai.waitingLabel`
+- Current keys: `ai.actionIntervalSeconds`, `ai.defaultSeed`, `ai.waitingLabel`
 - Target spell-combat keys to add: support HP threshold, defensive reaction window, spell type preference weights, AI loadout names.
 
 ### Input
 
 - `input.voiceEnabled`, `input.speechLanguage`, `input.voiceUnavailableText`, `input.voiceListeningText`, `input.voiceReadyText`
 - `input.voiceButtonLabel`, `input.restartKey`, `input.voiceKey`, `input.maxTranscriptCharacters`, `input.invalidKeyText`
-- Add voice confidence threshold, spell-slot keyboard bindings, and microphone mode when the casting pipeline is implemented.
+- Add voice confidence threshold and microphone mode when the casting pipeline is expanded.
 
 ### Preparation Layout
 
@@ -326,8 +325,8 @@ Every item below belongs in `src/config.js` or an equivalent single centralized 
 
 - Shared layout: `layout.outerPadding`, `layout.cornerRadius`, `layout.panelLineWidth`, `layout.bottomMargin`, `layout.iconRadius`
 - HUD: `layout.statusPanelWidth`, `layout.statusPanelHeight`, `layout.hpBarHeight`, `layout.hpBarY`, `layout.cooldownChipWidth`, `layout.cooldownChipHeight`, `layout.cooldownChipGap`, `layout.timerPanelWidth`, `layout.timerPanelHeight`, `layout.latestPanelWidth`, `layout.latestPanelHeight`
-- Legacy command panel: `layout.commandPanelWidth`, `layout.commandPanelHeight`, `layout.actionButtonWidth`, `layout.actionButtonHeight`, `layout.actionButtonGap`, `layout.actionButtonY`
-- Spell buttons and voice: `layout.voiceButtonWidth`, `layout.spellButtonWidth`, `layout.spellButtonHeight`, `layout.spellButtonGap`, `layout.spellButtonY`
+- Command panel: `layout.commandPanelWidth`, `layout.commandPanelHeight`
+- Spell buttons and voice: `layout.voiceButtonWidth`, `layout.actionButtonHeight`, `layout.actionButtonY`, `layout.spellButtonWidth`, `layout.spellButtonHeight`, `layout.spellButtonGap`, `layout.spellButtonY`
 - Result controls: `layout.restartButtonWidth`, `layout.overlayButtonHeight`
 - Arena and actors: `layout.horizonY`, `layout.floorBottomY`, `layout.playerHumanX`, `layout.playerHumanY`, `layout.playerDragonX`, `layout.playerDragonY`, `layout.aiHumanX`, `layout.aiHumanY`, `layout.aiDragonX`, `layout.aiDragonY`, `layout.playerDragonWidth`, `layout.playerDragonHeight`, `layout.aiDragonWidth`, `layout.aiDragonHeight`, `layout.humanWidth`, `layout.humanHeight`, `layout.stateLabelOffsetY`
 - Arena bounds and effect placement: `layout.arenaNearLeft`, `layout.arenaNearRight`, `layout.arenaFarLeft`, `layout.arenaFarRight`, `layout.effectArcOffsetY`, `layout.effectLineWidth`
@@ -339,25 +338,14 @@ Every item below belongs in `src/config.js` or an equivalent single centralized 
 ### Text
 
 - Names and identity: `text.playerName`, `text.aiName`, `text.playerElement`, `text.aiElement`
-- Headings: `text.commandReferenceTitle`, `text.preparationTitle`, `text.preparationSubtitle`, `text.eggDrawingTitle`, `text.spellTypeTitle`, `text.spellNameTitle`, `text.patternSummaryTitle`, `text.effectPreviewTitle`, `text.spellSlotsTitle`, `text.matchPreviewTitle`
+- Headings: `text.commandReferenceTitle`, `text.preparationTitle`, `text.preparationSubtitle`, `text.eggDrawingTitle`, `text.spellTypeTitle`, `text.spellNameTitle`, `text.effectPreviewTitle`, `text.spellSlotsTitle`, `text.matchPreviewTitle`
 - Buttons: `text.randomPatternLabel`, `text.confirmLoadoutLabel`, `text.saveSpellLabel`, `text.cycleNameLabel`, `text.clearPatternLabel`, `text.backToForgeLabel`
 - Feedback: `text.prepReadyFeedback`, `text.spellSavedFeedback`, `text.spellNameRejectedFeedback`, `text.patternRejectedFeedback`, `text.loadoutReadyFeedback`, `text.loadoutBlockedFeedback`
 - HUD and hints: `text.energyLabel`, `text.microphoneStateLabel`, `text.latestPlayerTitle`, `text.latestAiTitle`, `text.noPlayerCommand`, `text.noAiCommand`, `text.fallbackHint`, `text.assetWarning`
 
-### Legacy Basic Action Scaffold
-
-These keys exist only to support current scaffold code and tests until spell combat replaces them:
-
-- `actions.attack.command`, `actions.attack.label`, `actions.attack.key`, `actions.attack.damage`, `actions.attack.cooldownSeconds`, `actions.attack.displaySeconds`, `actions.attack.type`
-- `actions.defence.command`, `actions.defence.label`, `actions.defence.key`, `actions.defence.damage`, `actions.defence.cooldownSeconds`, `actions.defence.activeSeconds`, `actions.defence.type`
-- `actions.block.command`, `actions.block.label`, `actions.block.key`, `actions.block.damage`, `actions.block.cooldownSeconds`, `actions.block.activeSeconds`, `actions.block.type`
-- `actions.skill.command`, `actions.skill.label`, `actions.skill.key`, `actions.skill.damage`, `actions.skill.cooldownSeconds`, `actions.skill.displaySeconds`, `actions.skill.type`
-- `combat.idleLabel`, `combat.cooldownLabel`, `combat.defeatedLabel`, `combat.unknownCommandReason`, `combat.cooldownReason`, `combat.defeatedReason`, `combat.inactiveReason`, `combat.successReason`
-
 ## Known Technical Debt
 
-- Legacy basic-action commands still exist in code and tests.
-- Voice recognition still references command words instead of prepared spell names.
-- Match screen is currently a preview, not a playable spell combat loop.
-- AI still uses legacy action choices.
+- Spell casting currently consumes resources and starts cooldowns, but full spell effects still need to be wired into match combat.
+- Match screen still includes preview-state affordances while active spell combat matures.
+- AI spell choices are ready/affordability based and need tactical weighting.
 - Renderer is broad and may need splitting when combat visuals grow.
