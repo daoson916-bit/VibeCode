@@ -6,9 +6,8 @@ import { getSpellEffectPreview } from '../spells/spellRules.js';
 function createSpellLoadout(names, config) {
   return names.map((name, index) => {
     const spell = createEmptySpellSlot(index, config);
-    // Initialize spell combat properties
-    spell.cooldownRemaining = 0; // Ready from start
-    spell.baseCooldown = 2; // Default 2 second cooldown
+    spell.cooldownRemaining = config.match.minHp;
+    spell.baseCooldown = config.spellCasting.baseCooldownSeconds;
     return spell;
   });
 }
@@ -18,14 +17,14 @@ function createSide(id, name, element, spellNames, config) {
     id,
     name,
     element,
-    hp: CONFIG.match.startingHp,
+    hp: config.match.startingHp,
     energy: config.match.startingEnergy,
     maxEnergy: config.match.maxEnergy,
     spellLoadout: createSpellLoadout(spellNames, config),
-    actionLabel: CONFIG.combat.idleLabel,
-    actionLabelSeconds: CONFIG.match.minHp,
-    failedLabelSeconds: CONFIG.match.minHp,
-    latestCommand: id === CONFIG.match.aiId ? CONFIG.text.noAiCommand : CONFIG.text.noPlayerCommand,
+    actionLabel: config.combat.idleLabel,
+    actionLabelSeconds: config.match.minHp,
+    failedLabelSeconds: config.match.minHp,
+    latestCommand: id === config.match.aiId ? config.text.noAiCommand : config.text.noPlayerCommand,
     latestReason: '',
     defeated: false,
     // Spell combat properties
@@ -57,6 +56,8 @@ export function createInitialGameState(config = CONFIG) {
     uiButtons: [],
     voiceStatus: config.input.voiceReadyText,
     voiceListening: false,
+    voiceRetryRemaining: config.match.minHp,
+    voiceLockoutRemaining: config.match.minHp,
     preparation: {
       selectedSpellType: config.spells.types[config.match.minHp],
       draftSpellName: config.spells.defaultPlayerNames[config.match.minHp],
@@ -127,7 +128,7 @@ export function regenEnergy(actor, deltaSeconds, config = CONFIG) {
 
   // Add bonus regen if utility is active
   if (actor.utilityBonusActive && actor.utilityBonusActive > 0) {
-    regenPerSecond += 2; // Bonus energy per second (configurable in future)
+    regenPerSecond += config.shieldAndDamage.utilityBonusRegenPerSecond;
   }
 
   // Apply regen

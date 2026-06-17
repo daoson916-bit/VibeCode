@@ -168,6 +168,106 @@ export function applyUtility(actor, utilityDuration, config = CONFIG) {
   };
 }
 
+function addClosedBonus(baseValue, spell, config) {
+  if (!spell.pattern?.hasClosedBonus) return baseValue;
+  if (spell.type === 'Attack') return baseValue + config.spellEffects.closedAttackBonusDamage;
+  if (spell.type === 'Defense') return baseValue + config.spellEffects.closedDefenseBonusShield;
+  if (spell.type === 'Support') return baseValue + config.spellEffects.closedSupportBonusHeal;
+  if (spell.type === 'Control') return baseValue + config.spellEffects.closedControlBonusSeconds;
+  if (spell.type === 'Utility') return baseValue + config.spellEffects.closedUtilityBonusSeconds;
+  return baseValue;
+}
+
+function getSpellEffectValue(spell, config) {
+  const weight = spell.weightBand ?? config.patterns.unformedLabel;
+  if (spell.type === 'Attack') return addClosedBonus(config.spellEffects.attackDamageByWeight[weight], spell, config);
+  if (spell.type === 'Defense') return addClosedBonus(config.spellEffects.defenseShieldByWeight[weight], spell, config);
+  if (spell.type === 'Support') return addClosedBonus(config.spellEffects.supportHealByWeight[weight], spell, config);
+  if (spell.type === 'Control') return addClosedBonus(config.spellEffects.controlSlowSecondsByWeight[weight], spell, config);
+  if (spell.type === 'Utility') return addClosedBonus(config.spellEffects.utilityBonusSecondsByWeight[weight], spell, config);
+  return config.match.minHp;
+}
+
+function addHitText(state, sideId, text, amount, config) {
+  state.hitEffects.push({
+    sideId,
+    text,
+    amount,
+    seconds: config.animation.hitTextSeconds
+  });
+}
+
+function addProjectile(state, actorId, targetId, config) {
+  state.projectileEffects.push({
+    actorId,
+    targetId,
+    seconds: config.animation.projectileSeconds
+  });
+}
+
+export function applySpellEffect(actor, target, spell, state, config = CONFIG) {
+  const value = getSpellEffectValue(spell, config);
+  if (spell.type === 'Attack') {
+    const piercePercent = spell.pattern?.piercePercent ?? config.match.minHp;
+    const damage = applyDamage(target, value, piercePercent, config);
+    addProjectile(state, actor.id, target.id, config);
+    addHitText(state, target.id, `-${damage.damageApplied}`, damage.damageApplied, config);
+    state.shakeRemaining = damage.damageApplied > config.match.minHp ? config.animation.shakeSeconds : state.shakeRemaining;
+    return {
+      type: spell.type,
+      damage: damage.damageApplied,
+      shieldAbsorbed: damage.shieldAbsorbed,
+      feedbackMessage: `${spell.name} hit for ${damage.damageApplied} damage`
+    };
+  }
+
+  if (spell.type === 'Defense') {
+    const shield = applyShield(actor, value, config);
+    addHitText(state, actor.id, `+${shield.shieldAdded} shield`, config.match.minHp, config);
+    return {
+      type: spell.type,
+      shield: shield.shieldAdded,
+      feedbackMessage: `${spell.name} added ${shield.shieldAdded} shield`
+    };
+  }
+
+  if (spell.type === 'Support') {
+    const heal = applyHeal(actor, value, config);
+    addHitText(state, actor.id, `+${heal.healApplied} HP`, -heal.healApplied, config);
+    return {
+      type: spell.type,
+      heal: heal.healApplied,
+      feedbackMessage: `${spell.name} healed ${heal.healApplied} HP`
+    };
+  }
+
+  if (spell.type === 'Control') {
+    const slow = applySlow(target, value, config);
+    addProjectile(state, actor.id, target.id, config);
+    addHitText(state, target.id, `Slowed ${slow.slowDuration}s`, config.match.minHp, config);
+    return {
+      type: spell.type,
+      slowDuration: slow.slowDuration,
+      feedbackMessage: `${spell.name} slowed target for ${slow.slowDuration}s`
+    };
+  }
+
+  if (spell.type === 'Utility') {
+    const utility = applyUtility(actor, value, config);
+    addHitText(state, actor.id, `Regen ${utility.utilityDuration}s`, config.match.minHp, config);
+    return {
+      type: spell.type,
+      utilityDuration: utility.utilityDuration,
+      feedbackMessage: `${spell.name} boosted regen for ${utility.utilityDuration}s`
+    };
+  }
+
+  return {
+    type: spell.type,
+    feedbackMessage: `${spell.name} had no effect`
+  };
+}
+
 /**
  * Updates effect durations (shield, slow, utility) by ticking them down.
  *

@@ -49,30 +49,53 @@ export function createInputController({ canvas, state, logger, random = Math.ran
   function submitSpell(slotIndex, source) {
     const actor = state.sides[config.match.playerId];
     const spell = actor.spellLoadout[slotIndex] ?? null;
-    actor.latestCommand = spell?.name ?? config.combat.unknownCommandReason;
     const cooldownMultiplier = source === 'voice' ? config.spellCasting.voiceCooldownMultiplier : config.spellCasting.buttonCooldownMultiplier;
     const result = applyCast(actor, spell, state, cooldownMultiplier, config);
+    actor.latestCommand = result.success ? result.feedbackMessage : result.reason;
     actor.latestReason = result.success ? config.combat.successReason : result.reason;
     actor.actionLabel = result.success ? spell.name : result.reason;
     actor.actionLabelSeconds = config.combat.failedFeedbackSeconds;
     actor.failedLabelSeconds = result.success ? config.match.minHp : config.combat.failedFeedbackSeconds;
+    actor.latestFeedback = result.success ? result.feedbackMessage : result.reason;
+    actor.latestFeedbackTime = config.animation.hitTextSeconds;
     logger?.info('Spell input received', { source, slotIndex, spell: spell?.name, result });
     return result;
   }
 
   function submitVoiceSpell(transcript) {
     const actor = state.sides[config.match.playerId];
+    if (state.voiceLockoutRemaining > config.match.minHp) {
+      actor.latestCommand = config.combat.voiceLockoutReason;
+      actor.latestReason = config.combat.voiceLockoutReason;
+      actor.actionLabel = actor.latestReason;
+      actor.failedLabelSeconds = config.combat.failedFeedbackSeconds;
+      logger?.warn('Voice spell blocked by global lockout', { transcript, remaining: state.voiceLockoutRemaining });
+      return { success: false, reason: config.combat.voiceLockoutReason };
+    }
+    if (state.voiceRetryRemaining > config.match.minHp) {
+      actor.latestCommand = config.combat.voiceRetryReason;
+      actor.latestReason = config.combat.voiceRetryReason;
+      actor.actionLabel = actor.latestReason;
+      actor.failedLabelSeconds = config.combat.failedFeedbackSeconds;
+      logger?.warn('Voice spell blocked by retry delay', { transcript, remaining: state.voiceRetryRemaining });
+      return { success: false, reason: config.combat.voiceRetryReason };
+    }
+
     const heardName = normalizeSpellName(transcript).toLowerCase();
     const slotIndex = actor.spellLoadout.findIndex((spell) => normalizeSpellName(spell.name).toLowerCase() === heardName);
     if (slotIndex < config.match.minHp) {
-      actor.latestCommand = transcript || config.combat.unknownCommandReason;
+      actor.latestCommand = config.combat.unknownCommandReason;
       actor.latestReason = config.combat.unknownCommandReason;
       actor.actionLabel = config.combat.unknownCommandReason;
       actor.failedLabelSeconds = config.combat.failedFeedbackSeconds;
+      state.voiceRetryRemaining = config.spellCasting.voiceRetryDelaySeconds;
       logger?.warn('Voice spell not found', { transcript });
       return { success: false, reason: config.combat.unknownCommandReason };
     }
-    return submitSpell(slotIndex, 'voice');
+    const result = submitSpell(slotIndex, 'voice');
+    if (result.success) state.voiceLockoutRemaining = config.spellCasting.voiceGlobalLockoutSeconds;
+    else state.voiceRetryRemaining = config.spellCasting.voiceRetryDelaySeconds;
+    return result;
   }
 
   function restartMatch(source) {

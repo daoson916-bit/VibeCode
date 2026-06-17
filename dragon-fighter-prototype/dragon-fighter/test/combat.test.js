@@ -27,11 +27,11 @@ test('result rules handle win, lose, draw, and timer resolution', () => {
   drawState.sides[CONFIG.match.aiId].hp = CONFIG.match.minHp;
   assert.equal(chooseResult(drawState).label, CONFIG.match.drawLabel);
 
-  const timerWinState = activeState();
-  timerWinState.matchRemaining = CONFIG.match.minHp;
-  timerWinState.sides[CONFIG.match.playerId].hp = CONFIG.match.startingHp;
-  timerWinState.sides[CONFIG.match.aiId].hp = CONFIG.match.startingHp - 10;
-  assert.equal(chooseResult(timerWinState).label, CONFIG.match.winLabel);
+  const timerDrawState = activeState();
+  timerDrawState.matchRemaining = CONFIG.match.minHp;
+  timerDrawState.sides[CONFIG.match.playerId].hp = CONFIG.match.startingHp;
+  timerDrawState.sides[CONFIG.match.aiId].hp = CONFIG.match.startingHp - 10;
+  assert.equal(chooseResult(timerDrawState).label, CONFIG.match.drawLabel);
 });
 
 // ============ Spell combat tests (Milestone 1) ============
@@ -252,4 +252,88 @@ test('spell cast with button multiplier increases cooldown', () => {
   
   // 2 * 1.5 = 3
   assert.equal(spell.cooldownRemaining, 3);
+});
+
+test('attack spell cast damages AI, spends energy, starts cooldown, and creates feedback', () => {
+  const state = activeState();
+  const player = state.sides[CONFIG.match.playerId];
+  const ai = state.sides[CONFIG.match.aiId];
+  const spell = {
+    name: 'Light Slash',
+    type: 'Attack',
+    weightBand: CONFIG.patterns.lightLabel,
+    energyCost: CONFIG.spellCosts.Light,
+    baseCooldown: CONFIG.spellCasting.baseCooldownSeconds,
+    cooldownRemaining: CONFIG.match.minHp,
+    pattern: { piercePercent: CONFIG.match.minHp, hasClosedBonus: false }
+  };
+
+  const result = applyCast(player, spell, state, CONFIG.spellCasting.voiceCooldownMultiplier, CONFIG);
+
+  assert.equal(result.success, true);
+  assert.equal(ai.hp, CONFIG.match.startingHp - CONFIG.spellEffects.attackDamageByWeight.Light);
+  assert.equal(player.energy, CONFIG.match.startingEnergy - CONFIG.spellCosts.Light);
+  assert.equal(spell.cooldownRemaining, CONFIG.spellCasting.baseCooldownSeconds);
+  assert.match(result.feedbackMessage, /hit/);
+  assert.equal(state.projectileEffects.length, 1);
+  assert.equal(state.hitEffects.length, 1);
+});
+
+test('defense, support, control, and utility spell effects update actors', () => {
+  const state = activeState();
+  const player = state.sides[CONFIG.match.playerId];
+  const ai = state.sides[CONFIG.match.aiId];
+  player.hp = CONFIG.match.startingHp - 20;
+
+  const common = {
+    weightBand: CONFIG.patterns.lightLabel,
+    energyCost: CONFIG.match.minEnergy,
+    baseCooldown: CONFIG.spellCasting.baseCooldownSeconds,
+    cooldownRemaining: CONFIG.match.minHp,
+    pattern: { piercePercent: CONFIG.match.minHp, hasClosedBonus: false }
+  };
+
+  applyCast(player, { ...common, name: 'Fire Guard', type: 'Defense' }, state, CONFIG.spellCasting.voiceCooldownMultiplier, CONFIG);
+  assert.equal(player.shield, CONFIG.spellEffects.defenseShieldByWeight.Light);
+
+  applyCast(player, { ...common, name: 'Water Heal', type: 'Support' }, state, CONFIG.spellCasting.voiceCooldownMultiplier, CONFIG);
+  assert.equal(player.hp, CONFIG.match.startingHp - 20 + CONFIG.spellEffects.supportHealByWeight.Light);
+
+  applyCast(player, { ...common, name: 'Earth Snare', type: 'Control' }, state, CONFIG.spellCasting.voiceCooldownMultiplier, CONFIG);
+  assert.equal(ai.slowActive, CONFIG.spellEffects.controlSlowSecondsByWeight.Light);
+
+  applyCast(player, { ...common, name: 'Wind Dash', type: 'Utility' }, state, CONFIG.spellCasting.voiceCooldownMultiplier, CONFIG);
+  assert.equal(player.utilityBonusActive, CONFIG.spellEffects.utilityBonusSecondsByWeight.Light);
+});
+
+test('slow effect extends caster cooldown through config multiplier', () => {
+  const state = activeState();
+  const player = state.sides[CONFIG.match.playerId];
+  player.slowActive = 1;
+  const spell = {
+    name: 'Light Slash',
+    type: 'Attack',
+    weightBand: CONFIG.patterns.lightLabel,
+    energyCost: CONFIG.spellCosts.Light,
+    baseCooldown: CONFIG.spellCasting.baseCooldownSeconds,
+    cooldownRemaining: CONFIG.match.minHp,
+    pattern: { piercePercent: CONFIG.match.minHp, hasClosedBonus: false }
+  };
+
+  applyCast(player, spell, state, CONFIG.spellCasting.voiceCooldownMultiplier, CONFIG);
+
+  assert.equal(spell.cooldownRemaining, CONFIG.spellCasting.baseCooldownSeconds * CONFIG.spellCasting.slowCooldownMultiplier);
+});
+
+test('utility bonus increases energy regen and expires through actor effects', () => {
+  const state = activeState();
+  const player = state.sides[CONFIG.match.playerId];
+  player.energy = CONFIG.match.minEnergy;
+  player.utilityBonusActive = 2;
+
+  regenEnergy(player, 1, CONFIG);
+  assert.equal(player.energy, CONFIG.match.energyRegenPerSecond + CONFIG.shieldAndDamage.utilityBonusRegenPerSecond);
+
+  updateActorEffects(player, 2, CONFIG);
+  assert.equal(player.utilityBonusActive, CONFIG.match.minHp);
 });

@@ -4,7 +4,7 @@
 
 This Technical Design Document is the implementation guide for the Canvas-only Dragon Fighter prototype. The GDD owns player-facing design intent. This TDD owns architecture, code conventions, formulas, diagnostics, tests, build rules, and tunable configuration.
 
-The current prototype has a working spell-preparation flow, countdown-to-active match loop, and spell-slot casting input. The combat direction is prepared spell skills only.
+The current prototype has a working spell-preparation flow, countdown-to-active match loop, and player spell combat. Prepared spells validate, spend energy, start cooldowns, apply type-specific effects, update combat feedback, and can end the match. The AI remains a stationary dummy until the next milestone.
 
 ## Non-Negotiable Engineering Rules
 
@@ -196,18 +196,19 @@ Current coverage should include:
 - Canvas layout helper output.
 - Pattern connection count, weight band, crossed lines, closed patterns, piercing, instability, and costs.
 - Spell creation, effect preview, name validation, similar-name rejection, and five-slot loadout confirmation.
-- Legacy action scaffold while it remains in code.
-
-Next coverage should include:
-
 - Prepared spell input mapping.
 - Cast validation failures and success path.
 - Energy spend, shortage, regeneration, and clamp.
 - Spell cooldowns and voice lockouts.
 - Attack, Defense, Support, Control, and Utility effects.
 - Shield and piercing resolution.
-- AI spell choices using shared rules.
 - Timer, defeat, tiebreakers, restart, and return-to-preparation reset.
+
+Next coverage should include:
+
+- AI spell choices using shared rules.
+- AI energy/cooldown management and tactical priorities.
+- Full two-sided match simulations.
 
 ## Build, Diagnostics, And Commit Workflow
 
@@ -293,12 +294,12 @@ Every item below belongs in `src/config.js` or an equivalent single centralized 
 
 ### Casting And Cooldowns
 
-- Current keys: `spellCasting.voiceCooldownMultiplier`, `spellCasting.buttonCooldownMultiplier`, `spellCasting.voiceRetryDelaySeconds`, `spellCasting.voiceGlobalLockoutSeconds`, `combat.failedFeedbackSeconds`
+- Current keys: `spellCasting.baseCooldownSeconds`, `spellCasting.voiceCooldownMultiplier`, `spellCasting.buttonCooldownMultiplier`, `spellCasting.slowCooldownMultiplier`, `spellCasting.voiceRetryDelaySeconds`, `spellCasting.voiceGlobalLockoutSeconds`, `combat.failedFeedbackSeconds`, `combat.cooldownReadyLabel`, `combat.cooldownDecimalPlaces`
 - Target spell-combat keys to add: inactive-input feedback duration.
 
 ### Shield And Damage
 
-- Current keys: `shieldAndDamage.shieldDurationSeconds`, `shieldAndDamage.fullDamageMultiplier`, `shieldAndDamage.damageRoundingMode`, `shieldAndDamage.hpRoundingMode`
+- Current keys: `shieldAndDamage.shieldDurationSeconds`, `shieldAndDamage.utilityBonusRegenPerSecond`, `shieldAndDamage.fullDamageMultiplier`, `shieldAndDamage.damageRoundingMode`, `shieldAndDamage.hpRoundingMode`
 - Target spell-combat keys to add: additional shield absorption rules and damage text variants.
 
 ### AI
@@ -328,7 +329,7 @@ Every item below belongs in `src/config.js` or an equivalent single centralized 
 - Command panel: `layout.commandPanelWidth`, `layout.commandPanelHeight`
 - Spell buttons and voice: `layout.voiceButtonWidth`, `layout.actionButtonHeight`, `layout.actionButtonY`, `layout.spellButtonWidth`, `layout.spellButtonHeight`, `layout.spellButtonGap`, `layout.spellButtonY`
 - Result controls: `layout.restartButtonWidth`, `layout.overlayButtonHeight`
-- Arena and actors: `layout.horizonY`, `layout.floorBottomY`, `layout.playerHumanX`, `layout.playerHumanY`, `layout.playerDragonX`, `layout.playerDragonY`, `layout.aiHumanX`, `layout.aiHumanY`, `layout.aiDragonX`, `layout.aiDragonY`, `layout.playerDragonWidth`, `layout.playerDragonHeight`, `layout.aiDragonWidth`, `layout.aiDragonHeight`, `layout.humanWidth`, `layout.humanHeight`, `layout.stateLabelOffsetY`
+- Arena and actors: `layout.horizonY`, `layout.floorBottomY`, `layout.playerHumanX`, `layout.playerHumanY`, `layout.playerDragonX`, `layout.playerDragonY`, `layout.aiHumanX`, `layout.aiHumanY`, `layout.aiDragonX`, `layout.aiDragonY`, `layout.playerDragonWidth`, `layout.playerDragonHeight`, `layout.aiDragonWidth`, `layout.aiDragonHeight`, `layout.humanWidth`, `layout.humanHeight`, `layout.dragonFeatureScale`, `layout.stateLabelOffsetY`
 - Arena bounds and effect placement: `layout.arenaNearLeft`, `layout.arenaNearRight`, `layout.arenaFarLeft`, `layout.arenaFarRight`, `layout.effectArcOffsetY`, `layout.effectLineWidth`
 
 ### Animation And Effects
@@ -345,7 +346,6 @@ Every item below belongs in `src/config.js` or an equivalent single centralized 
 
 ## Known Technical Debt
 
-- Spell casting currently consumes resources and starts cooldowns, but full spell effects still need to be wired into match combat.
 - Match screen still includes preview-state affordances while active spell combat matures.
-- AI spell choices are ready/affordability based and need tactical weighting.
+- AI is intentionally disabled in the active match loop for Milestone 2 and needs tactical casting in Milestone 3.
 - Renderer is broad and may need splitting when combat visuals grow.

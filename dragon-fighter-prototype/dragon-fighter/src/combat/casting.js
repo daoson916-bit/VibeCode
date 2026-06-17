@@ -1,5 +1,7 @@
 import { CONFIG } from '../config.js';
+import { getOpponent } from '../core/gameState.js';
 import { log } from '../core/logger.js';
+import { applySpellEffect } from './damageResolver.js';
 
 /**
  * Validates whether a spell cast is allowed based on actor state, match state, and spell readiness.
@@ -48,8 +50,7 @@ export function validateSpellCast(actor, spell, matchState, config = CONFIG) {
 }
 
 /**
- * Applies a spell cast: deducts energy, starts cooldown, prepares effect data.
- * Does NOT apply the effect itself; that is the caller's responsibility.
+ * Applies a spell cast: deducts energy, starts cooldown, applies spell effect, and logs the result.
  * Logs the cast attempt.
  *
  * @param {Object} actor - The casting actor.
@@ -57,7 +58,7 @@ export function validateSpellCast(actor, spell, matchState, config = CONFIG) {
  * @param {Object} matchState - Current match state.
  * @param {number} cooldownMultiplier - Multiplier for cooldown (e.g., 1.0 for voice, 1.5 for button).
  * @param {Object} config - Configuration object (CONFIG).
- * @returns {Object} { success: boolean, reason: string, energySpent: number, cooldownSet: number }
+ * @returns {Object} { success: boolean, reason: string, energySpent: number, cooldownSet: number, feedbackMessage: string }
  */
 export function applyCast(actor, spell, matchState, cooldownMultiplier = 1.0, config = CONFIG) {
   // Validate first
@@ -75,10 +76,12 @@ export function applyCast(actor, spell, matchState, cooldownMultiplier = 1.0, co
   actor.energy = Math.max(config.match.minEnergy, actor.energy - energyCost);
   const energySpent = energyBefore - actor.energy;
 
-  // Set cooldown
-  const baseCooldown = spell.baseCooldown || 2; // Default 2 seconds if not specified
-  const cooldownDuration = baseCooldown * cooldownMultiplier;
+  const slowMultiplier = actor.slowActive > config.match.minHp ? config.spellCasting.slowCooldownMultiplier : 1;
+  const baseCooldown = spell.baseCooldown ?? config.spellCasting.baseCooldownSeconds;
+  const cooldownDuration = baseCooldown * cooldownMultiplier * slowMultiplier;
   spell.cooldownRemaining = cooldownDuration;
+  const target = getOpponent(matchState, actor.id, config);
+  const effect = applySpellEffect(actor, target, spell, matchState, config);
 
   log(`Cast success: ${actor.id} cast ${spell.name || 'spell'}`, {
     category: 'combat',
@@ -87,12 +90,15 @@ export function applyCast(actor, spell, matchState, cooldownMultiplier = 1.0, co
     energyBefore,
     energyAfter: actor.energy,
     energySpent,
-    cooldownSet: cooldownDuration
+    cooldownSet: cooldownDuration,
+    effect
   });
 
   return {
     success: true,
     energySpent,
-    cooldownSet: cooldownDuration
+    cooldownSet: cooldownDuration,
+    effect,
+    feedbackMessage: effect.feedbackMessage
   };
 }

@@ -18,9 +18,7 @@ export function chooseResult(state, config = CONFIG) {
   }
 
   if (state.matchRemaining <= config.match.minHp) {
-    if (player.hp === ai.hp) return { label: config.match.drawLabel, reason: 'Time expired with equal HP.' };
-    if (player.hp > ai.hp) return { label: config.match.winLabel, reason: 'Time expired and Player 1 had more HP.' };
-    return { label: config.match.loseLabel, reason: 'Time expired and the AI had more HP.' };
+    return { label: config.match.drawLabel, reason: 'Time expired with both sides still standing.' };
   }
 
   return null;

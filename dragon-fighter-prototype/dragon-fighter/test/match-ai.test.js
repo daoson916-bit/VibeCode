@@ -46,7 +46,21 @@ test('match timer ending chooses result phase', () => {
   state.sides[CONFIG.match.aiId].hp = CONFIG.match.startingHp - 10;
   updateMatchState(state, CONFIG.match.minHp, () => CONFIG.match.minHp, null, CONFIG);
   assert.equal(state.phase, CONFIG.match.resultPhase);
-  assert.equal(state.result, CONFIG.match.winLabel);
+  assert.equal(state.result, CONFIG.match.drawLabel);
+});
+
+test('active match loop leaves AI as a stationary dummy in milestone 2', () => {
+  const state = activeState();
+  const ai = state.sides[CONFIG.match.aiId];
+  ai.spellLoadout.forEach((spell) => {
+    spell.filled = true;
+    spell.energyCost = CONFIG.match.minEnergy;
+  });
+
+  updateMatchState(state, CONFIG.ai.actionIntervalSeconds, () => CONFIG.match.minHp, null, CONFIG);
+
+  assert.equal(ai.latestCommand, CONFIG.text.noAiCommand);
+  assert.equal(ai.spellLoadout.every((spell) => spell.cooldownRemaining === CONFIG.match.minHp), true);
 });
 
 test('active match regenerates one energy per second', () => {

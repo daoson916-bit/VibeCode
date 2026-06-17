@@ -70,7 +70,7 @@ function drawArena(ctx, config) {
   ctx.moveTo(config.layout.playerDragonX, config.layout.playerDragonY);
   ctx.lineTo(config.layout.aiDragonX, config.layout.aiDragonY);
   ctx.strokeStyle = config.colors.arenaLine;
-  ctx.globalAlpha = config.combat.defenceDamageMultiplier;
+  ctx.globalAlpha = config.layout.dragonFeatureScale;
   ctx.stroke();
   ctx.globalAlpha = config.match.sideCount - config.match.sideCount + 1;
 }
@@ -135,7 +135,7 @@ function drawDragon(ctx, x, y, width, height, color, facingLeft, bob, config) {
 
   ctx.beginPath();
   ctx.moveTo(x + direction * width / config.match.sideCount, bodyY - height / config.match.sideCount);
-  ctx.lineTo(x + direction * width * config.combat.defenceDamageMultiplier, bodyY - height);
+  ctx.lineTo(x + direction * width * config.layout.dragonFeatureScale, bodyY - height);
   ctx.lineTo(x + direction * width, bodyY - height / config.match.sideCount);
   ctx.closePath();
   ctx.fill();
@@ -149,7 +149,7 @@ function drawDragon(ctx, x, y, width, height, color, facingLeft, bob, config) {
 
   ctx.fillStyle = config.colors.textPrimary;
   ctx.beginPath();
-  ctx.arc(x + direction * width * config.combat.defenceDamageMultiplier, bodyY - height / config.match.sideCount, config.layout.iconRadius / config.match.sideCount, CONFIG.match.minHp, Math.PI * config.match.sideCount);
+  ctx.arc(x + direction * width * config.layout.dragonFeatureScale, bodyY - height / config.match.sideCount, config.layout.iconRadius / config.match.sideCount, CONFIG.match.minHp, Math.PI * config.match.sideCount);
   ctx.fill();
 }
 
@@ -224,7 +224,7 @@ function drawHitEffects(ctx, state, config) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = effect.amount <= config.match.minHp ? config.colors.cooldownReady : config.colors.warning;
-    const text = effect.preventedBy ? `${effect.preventedBy}: -${effect.amount}` : `-${effect.amount}`;
+    const text = effect.text ?? (effect.preventedBy ? `${effect.preventedBy}: -${effect.amount}` : `-${effect.amount}`);
     ctx.fillText(text, baseX, baseY - config.layout.stateLabelOffsetY - progress * config.animation.hitTextRise);
   });
 }
@@ -289,14 +289,16 @@ function drawSpellButtons(ctx, state, config) {
     const spell = state.sides[config.match.playerId].spellLoadout[button.spellIndex];
     registerButton(state, button.id, button.kind, spell.name, button.rect, null, { spellIndex: button.spellIndex });
     drawRoundedRect(ctx, button.rect.x, button.rect.y, button.rect.width, button.rect.height, config.layout.cornerRadius, config.colors.buttonFill, config.colors.panelStroke, config.layout.panelLineWidth, config);
+    const isReady = (spell.cooldownRemaining ?? config.match.minHp) <= config.match.minHp;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = config.colors.textPrimary;
     ctx.font = font(config.fonts.smallSize, config.fonts.boldWeight, config);
-    ctx.fillText(spell.name, button.rect.x + button.rect.width / config.match.sideCount, button.rect.y + button.rect.height / config.match.sideCount - config.layout.cooldownChipGap);
-    ctx.fillStyle = config.colors.textSecondary;
+    ctx.fillText(spell.name, button.rect.x + button.rect.width / config.match.sideCount, button.rect.y + config.layout.cooldownChipGap * config.match.sideCount);
+    ctx.fillStyle = isReady ? config.colors.cooldownReady : config.colors.cooldownBlocked;
     ctx.font = font(config.fonts.smallSize, config.fonts.normalWeight, config);
-    ctx.fillText(spell.type, button.rect.x + button.rect.width / config.match.sideCount, button.rect.y + button.rect.height / config.match.sideCount + config.layout.cooldownChipGap);
+    const cooldownLabel = isReady ? config.combat.cooldownReadyLabel : `${spell.cooldownRemaining.toFixed(config.combat.cooldownDecimalPlaces)}s`;
+    ctx.fillText(`${spell.type} | ${cooldownLabel}`, button.rect.x + button.rect.width / config.match.sideCount, button.rect.y + button.rect.height - config.layout.cooldownChipGap * config.match.sideCount);
   });
 }
 

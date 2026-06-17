@@ -170,6 +170,10 @@ export const CONFIG = {
     idleLabel: 'Idle',
     // State label shown when an action is on cooldown and a player tried to use it. Recommended: Cooldown.
     cooldownLabel: 'Cooldown',
+    // Cooldown chip label shown when a spell can be cast. Recommended: Ready.
+    cooldownReadyLabel: 'Ready',
+    // Number of decimal places shown for cooldown countdowns. Recommended range: 0-1.
+    cooldownDecimalPlaces: 1,
     // State label shown after HP reaches zero. Recommended: Defeated.
     defeatedLabel: 'Defeated',
     // Failure reason shown for commands that are not a valid full word. Recommended: Unknown Command.
@@ -180,6 +184,10 @@ export const CONFIG = {
     defeatedReason: 'Defeated',
     // Failure reason shown when commands are attempted outside active match. Recommended: Match Inactive.
     inactiveReason: 'Match Inactive',
+    // Failure reason shown while voice input is briefly locked after success. Recommended: Voice Cooling.
+    voiceLockoutReason: 'Voice Cooling',
+    // Failure reason shown during retry delay after a failed voice phrase. Recommended: Voice Retry.
+    voiceRetryReason: 'Voice Retry',
     // Success reason text shown internally for successful commands. Recommended: Success.
     successReason: 'Success'
   },
@@ -328,10 +336,14 @@ export const CONFIG = {
   },
 
   spellCasting: {
+    // Base cooldown duration applied to newly prepared spells before input multipliers. Recommended range: 1.5-4.
+    baseCooldownSeconds: 2,
     // Cooldown multiplier for voice-cast spells. Recommended: 1.0 (same as base).
     voiceCooldownMultiplier: 1.0,
     // Cooldown multiplier for button/keyboard-cast spells. Recommended: 1.5 (longer to encourage voice).
     buttonCooldownMultiplier: 1.5,
+    // Cooldown multiplier applied while a caster is slowed. Recommended range: 1.25-2.0.
+    slowCooldownMultiplier: 1.5,
     // Delay before a failed voice cast can be retried, in seconds. Recommended range: 0.3-1.0.
     voiceRetryDelaySeconds: 0.5,
     // Global lockout after a successful voice cast before next voice input is accepted, in seconds. Recommended range: 0.05-0.3.
@@ -341,6 +353,8 @@ export const CONFIG = {
   shieldAndDamage: {
     // Duration that a shield buff remains active before expiring, in seconds. Recommended range: 3-8.
     shieldDurationSeconds: 5,
+    // Bonus energy regenerated each second while Utility is active. Recommended range: 1-4.
+    utilityBonusRegenPerSecond: 2,
     // Damage multiplier when target has no shield or block. Recommended: 1.0.
     fullDamageMultiplier: 1.0,
     // Rounding mode for damage calculations. Recommended: round.
@@ -517,6 +531,8 @@ export const CONFIG = {
     humanWidth: 48,
     // Human silhouette height in pixels. Recommended range: 70â€“130.
     humanHeight: 95,
+    // Wing and snout scale used for simple dragon silhouettes. Recommended range: 0.35-0.7.
+    dragonFeatureScale: 0.5,
     // State label offset above dragons in pixels. Recommended range: 40â€“90.
     stateLabelOffsetY: 68,
     // Canvas fallback action button height in pixels. Recommended range: 38â€“64.

@@ -21,16 +21,18 @@ The current design direction is spell-first combat. Prepared spell names, spell 
 - Random valid pattern generation.
 - Spell type selection: Attack, Defense, Support, Control, Utility.
 - Spell name editing and cycling.
-- Pattern summary with weight, energy cost, piercing, secondary effect, closed bonus, and instability.
-- Type-specific effect preview.
+- Type-specific effect preview with weight, energy cost, piercing, secondary effect, closed bonus, and instability.
 - Five spell slots with duplicate and too-similar name rejection.
 - Loadout confirmation into countdown, then active match.
 - Match screen with dragons, player panels, HP/energy display, state labels, latest feedback, spell buttons, and microphone status.
+- Player spell casting through voice, keyboard slots, and Canvas spell buttons.
+- Attack, Defense, Support, Control, and Utility effects applied to the live match.
+- Cooldown countdowns, energy regeneration, hit text, shield aura, projectile effects, and result overlay.
 
 ## Current Limitations
 
-- Spell casting currently spends energy and starts cooldowns, but combat effects still need to be fully applied after casting.
-- AI spell casting, restart polish, and full effect-driven match resolution are not complete.
+- The AI is a stationary dummy for the player-combat milestone and does not cast back yet.
+- AI spell casting and tactical decision-making are planned for the next milestone.
 
 ## Spell Preparation Rules
 

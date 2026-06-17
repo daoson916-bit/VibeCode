@@ -1,5 +1,4 @@
 import { CONFIG } from '../config.js';
-import { updateAi } from '../ai/aiController.js';
 import { updateFeedbackTimers, updateSpellCooldowns } from '../combat/cooldowns.js';
 import { endMatchIfNeeded } from '../combat/matchRules.js';
 import { regenEnergy, updateActorEffects } from '../core/gameState.js';
@@ -29,8 +28,14 @@ function updateSides(state, deltaSeconds, config) {
   });
 }
 
+function updateVoiceTimers(state, deltaSeconds, config) {
+  state.voiceRetryRemaining = Math.max(config.match.minHp, state.voiceRetryRemaining - deltaSeconds);
+  state.voiceLockoutRemaining = Math.max(config.match.minHp, state.voiceLockoutRemaining - deltaSeconds);
+}
+
 export function updateMatchState(state, deltaSeconds, random, logger, config = CONFIG) {
   state.elapsedSeconds += deltaSeconds;
+  updateVoiceTimers(state, deltaSeconds, config);
   updateSides(state, deltaSeconds, config);
   updateEffects(state, deltaSeconds, config);
 
@@ -48,6 +53,5 @@ export function updateMatchState(state, deltaSeconds, random, logger, config = C
 
   state.fightBannerRemaining = Math.max(config.match.minHp, state.fightBannerRemaining - deltaSeconds);
   state.matchRemaining = Math.max(config.match.minHp, state.matchRemaining - deltaSeconds);
-  updateAi(state, deltaSeconds, random, logger, config);
   endMatchIfNeeded(state, logger, config);
 }
