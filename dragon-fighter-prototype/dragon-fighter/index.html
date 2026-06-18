@@ -10,21 +10,12 @@
         margin: 0;
         height: 100%;
         background: #0b1020;
-        color: #fff4d6;
-        font-family: system-ui, "Segoe UI", sans-serif;
         overflow: hidden;
       }
 
-      .wrap {
-        box-sizing: border-box;
+      body {
         display: grid;
-        height: 100%;
-        padding: 12px;
         place-items: center;
-      }
-
-      .box {
-        width: min(1100px, 98vw);
       }
 
       canvas {
@@ -32,74 +23,22 @@
         background: #17223a;
         border: 3px solid #f6c453;
         border-radius: 20px;
+        box-sizing: border-box;
         box-shadow: 0 20px 70px #0009;
         display: block;
+        max-height: 100vh;
         touch-action: none;
-        width: 100%;
-      }
-
-      .bar {
-        align-items: center;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        justify-content: center;
-        margin-top: 10px;
-      }
-
-      button {
-        background: #101827;
-        border: 1px solid #f6c453;
-        border-radius: 999px;
-        color: #fff4d6;
-        cursor: pointer;
-        font-weight: 800;
-        padding: 10px 14px;
-      }
-
-      button:hover {
-        background: #2b3650;
-      }
-
-      button:disabled {
-        cursor: not-allowed;
-        opacity: 0.55;
-      }
-
-      #mic {
-        background: #f6c453;
-        color: #18120a;
-      }
-
-      .note {
-        color: #cbd5e1;
-        font-size: 14px;
-        margin-top: 8px;
-        text-align: center;
+        width: min(1100px, 100vw);
       }
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <div class="box">
-        <canvas id="game" width="1100" height="620"></canvas>
-        <div class="bar">
-          <button id="mic">Start microphone</button>
-          <button id="attack">Attack</button>
-          <button id="defence">Defence</button>
-          <button id="ultimate">Ultimate</button>
-          <button id="restart">Restart</button>
-        </div>
-        <div class="note" id="note">Say: Attack, Defence, Ultimate. Fallback keys: A / D / U / R.</div>
-      </div>
-    </div>
+    <canvas id="game" width="1100" height="620"></canvas>
 
     <script>
       (() => {
         const canvas = document.getElementById("game");
         const ctx = canvas.getContext("2d");
-        const note = document.getElementById("note");
-        const micButton = document.getElementById("mic");
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
         const cfg = {
@@ -132,6 +71,7 @@
           playerState: "Ready",
           enemyState: "Ready",
           message: "Press microphone and say Attack, Defence, or Ultimate.",
+          note: "Say: Attack, Defence, Ultimate. Fallback keys: A / D / U / R.",
           result: "",
           cd: { attack: 0, defence: 0, ultimate: 0 },
           defenceTimer: 0,
@@ -141,6 +81,7 @@
         };
 
         const images = {};
+        const buttons = [];
         let recognition = null;
         let listening = false;
         let last = performance.now();
@@ -169,6 +110,7 @@
           state.playerState = "Ready";
           state.enemyState = "Ready";
           state.message = "Battle started. Say Attack, Defence, or Ultimate.";
+          state.note = "Use canvas buttons, keyboard, or voice commands.";
           state.result = "";
           state.cd.attack = 0;
           state.cd.defence = 0;
@@ -239,6 +181,20 @@
           }
 
           checkEnd();
+        }
+
+        function toggleMic() {
+          if (!recognition) {
+            state.note = "This browser does not support Web Speech API. Use canvas buttons or A/D/U/R.";
+            return;
+          }
+
+          try {
+            if (listening) recognition.stop();
+            else recognition.start();
+          } catch (e) {
+            state.note = "Could not start microphone. Reload or use A/D/U.";
+          }
         }
 
         function enemyAttack() {
@@ -372,6 +328,31 @@
             ctx.fillStyle = "#0005";
             ctx.fillRect(x + 5, y + 5, 108 * (state.cd[key] / max), 40);
           }
+          ctx.textAlign = "left";
+        }
+
+        function canvasButton(id, x, y, w, h, label, fill, border) {
+          buttons.push({ id, x, y, w, h });
+          rr(x, y, w, h, 18, fill, border);
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#fff4d6";
+          ctx.font = "bold 15px system-ui";
+          ctx.fillText(label, x + w / 2, y + 27);
+          ctx.textAlign = "left";
+        }
+
+        function drawControls() {
+          buttons.length = 0;
+          canvasButton("mic", 110, 548, 150, 44, listening ? "Stop Mic" : "Start Mic", listening ? "#164e35dd" : "#f6c453dd", "#f6c453");
+          canvasButton("attack", 286, 548, 120, 44, "Attack", "#402313dd", "#fb923c");
+          canvasButton("defence", 432, 548, 120, 44, "Defence", "#16324add", "#60a5fa");
+          canvasButton("ultimate", 578, 548, 120, 44, "Ultimate", "#30215bdd", "#a78bfa");
+          canvasButton("restart", 844, 548, 148, 44, "Restart", "#102a4cdd", "#87d5ff");
+
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#cbd5e1";
+          ctx.font = "14px system-ui";
+          ctx.fillText(state.note, 550, 610);
           ctx.textAlign = "left";
         }
 
@@ -538,21 +519,13 @@
           ctx.fillText(state.message, 550, 168);
           ctx.textAlign = "left";
 
-          rr(310, 500, 480, 95, 20, "#07101dcc", "#f6c45388");
+          rr(310, 480, 480, 56, 20, "#07101dcc", "#f6c45388");
           ctx.textAlign = "center";
           ctx.fillStyle = "#fff4d6";
           ctx.font = "bold 20px system-ui";
-          ctx.fillText("VOICE COMMANDS", 550, 528);
-          ctx.font = "bold 18px system-ui";
-          ctx.fillStyle = "#fb923c";
-          ctx.fillText("Attack", 425, 562);
-          ctx.fillStyle = "#60a5fa";
-          ctx.fillText("Defence", 550, 562);
-          ctx.fillStyle = "#a78bfa";
-          ctx.fillText("Ultimate", 680, 562);
           ctx.fillStyle = "#cbd5e1";
           ctx.font = "14px system-ui";
-          ctx.fillText(`Latest heard: ${state.lastHeard}   |   Accepted: ${state.accepted}`, 550, 586);
+          ctx.fillText(`Latest heard: ${state.lastHeard}   |   Accepted: ${state.accepted}`, 550, 513);
           ctx.textAlign = "left";
 
           if (state.phase === "ready" || state.phase === "ended") {
@@ -566,12 +539,14 @@
             ctx.fillStyle = "#cbd5e1";
             ctx.font = "20px system-ui";
             ctx.fillText("Say: Attack, Defence, Ultimate", 550, 305);
-            ctx.fillText("Or use buttons / keys A, D, U", 550, 340);
+            ctx.fillText("Or use canvas buttons / keys A, D, U", 550, 340);
             ctx.fillStyle = "#f6c453";
             ctx.font = "bold 21px system-ui";
             ctx.fillText(state.phase === "ended" ? "Press R to play again" : "Use any command to start", 550, 385);
             ctx.textAlign = "left";
           }
+
+          drawControls();
 
           ctx.restore();
         }
@@ -586,8 +561,7 @@
 
         function setupSpeech() {
           if (!SpeechRecognition) {
-            note.textContent = "This browser does not support Web Speech API. Use buttons or A/D/U/R.";
-            micButton.disabled = true;
+            state.note = "This browser does not support Web Speech API. Use canvas buttons or A/D/U/R.";
             return;
           }
 
@@ -599,20 +573,18 @@
 
           recognition.onstart = () => {
             listening = true;
-            micButton.textContent = "Stop microphone";
-            note.textContent = "Listening. Say Attack / Defence / Ultimate.";
+            state.note = "Listening. Say Attack / Defence / Ultimate.";
             log("mic_start");
           };
 
           recognition.onend = () => {
             listening = false;
-            micButton.textContent = "Start microphone";
-            note.textContent = "Mic is off. Press to start listening again.";
+            state.note = "Mic is off. Press Start Mic to listen again.";
             log("mic_end");
           };
 
           recognition.onerror = (e) => {
-            note.textContent = `Mic error: ${e.error}. Use buttons or A/D/U.`;
+            state.note = `Mic error: ${e.error}. Use canvas buttons or A/D/U.`;
             log("mic_error", { error: e.error });
           };
 
@@ -630,23 +602,24 @@
             }
           };
 
-          note.textContent = "Voice is supported. Press microphone to play.";
+          state.note = "Voice is supported. Press Start Mic to play.";
         }
 
-        micButton.onclick = () => {
-          if (!recognition) return;
-          try {
-            if (listening) recognition.stop();
-            else recognition.start();
-          } catch (e) {
-            note.textContent = "Could not start microphone. Reload or use A/D/U.";
-          }
-        };
+        canvas.addEventListener("pointerup", (e) => {
+          const rect = canvas.getBoundingClientRect();
+          const scaleX = canvas.width / rect.width;
+          const scaleY = canvas.height / rect.height;
+          const x = (e.clientX - rect.left) * scaleX;
+          const y = (e.clientY - rect.top) * scaleY;
+          const button = buttons.find((item) => x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h);
 
-        document.getElementById("attack").onclick = () => useCommand("attack", "button");
-        document.getElementById("defence").onclick = () => useCommand("defence", "button");
-        document.getElementById("ultimate").onclick = () => useCommand("ultimate", "button");
-        document.getElementById("restart").onclick = reset;
+          if (!button) return;
+          if (button.id === "mic") toggleMic();
+          if (button.id === "attack") useCommand("attack", "canvas");
+          if (button.id === "defence") useCommand("defence", "canvas");
+          if (button.id === "ultimate") useCommand("ultimate", "canvas");
+          if (button.id === "restart") reset();
+        });
 
         window.addEventListener("keydown", (e) => {
           const k = e.key.toLowerCase();

@@ -4,11 +4,12 @@
 
 - Replaced the previous playable page with the standalone `voice_command_battle.html` game flow.
 - Cleaned the page text into readable English.
-- Kept the source as a single-file Canvas game in `index.html`.
+- Kept the playable source as one Canvas-only HTML game file in `index.html`.
+- Removed the old npm/module/test/build structure from the game folder.
 - Wired the game to current project assets instead of only drawn placeholder dragons.
 - Added asset fallbacks so the battle still renders if an image fails.
-- Preserved voice commands, button fallback, keyboard fallback, enemy auto attacks, cooldowns, timer, result flow, and restart.
-- GitHub Pages build still emits `dist/index.html`.
+- Preserved voice commands, Canvas button fallback, keyboard fallback, enemy auto attacks, cooldowns, timer, result flow, and restart.
+- GitHub Pages deploys the static game folder directly.
 
 ## Current Playable Scope
 
@@ -23,9 +24,10 @@ The game is a one-screen voice-command dragon battle:
 
 ## Validation Checklist
 
-- Open `index.html` and confirm it shows the game Canvas, not a folder listing.
+- Open `index.html` and confirm it shows one Canvas game surface, not a folder listing.
 - Confirm the arena background loads from `public/assets/backgrounds/arena.png`.
 - Confirm player and enemy dragon images load from `public/assets/dragons/`.
+- Confirm microphone, action, and restart buttons are drawn inside the Canvas.
 - Press Attack and confirm enemy HP drops by 12.
 - Press Defence and confirm incoming enemy damage is reduced.
 - Press Ultimate and confirm enemy HP drops by 35.
@@ -33,11 +35,9 @@ The game is a one-screen voice-command dragon battle:
 - Press `A`, `D`, `U`, and `R` and confirm they match the buttons.
 - In a supported browser, start the microphone and say Attack, Defence, or Ultimate.
 - Let the match end and confirm the result overlay appears.
-- Run `npm run check` before committing.
+- Confirm GitHub Pages deploys `dragon-fighter-prototype/dragon-fighter/index.html` directly.
 
 ## Next Steps
 
-- Add tests for the standalone command parser and combat calculations.
-- Decide whether to keep the single-file source or port it into the existing modular `src/` architecture.
 - Replace temporary private prototype assets before sharing publicly.
 - Tune mobile layout and microphone permission messaging after browser testing.
