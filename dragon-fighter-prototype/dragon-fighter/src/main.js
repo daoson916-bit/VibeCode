@@ -2,6 +2,8 @@ import { CONFIG } from './config.js';
 import { createInitialGameState } from './core/gameState.js';
 import { startGameLoop } from './core/gameLoop.js';
 import { createLogger } from './core/logger.js';
+import { registerKeyboardInput } from './input/keyboardInput.js';
+import { registerPointerInput } from './input/pointerInput.js';
 import { createCanvasRenderer } from './render/canvasRenderer.js';
 
 document.title = CONFIG.labels.title;
@@ -14,6 +16,20 @@ const renderer = createCanvasRenderer(CONFIG);
 
 logger.log('appEvents', 'app started');
 logger.log('stateEvents', 'initial state created', state);
+
+registerPointerInput({
+  canvas,
+  config: CONFIG,
+  layoutData: renderer.layoutData,
+  state,
+  logger
+});
+
+registerKeyboardInput({
+  config: CONFIG,
+  state,
+  logger
+});
 
 startGameLoop({
   config: CONFIG,

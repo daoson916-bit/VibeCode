@@ -12,6 +12,12 @@
 
 ### Changed
 
+- `src/input/pointerInput.js`
+- `src/input/keyboardInput.js`
+- `src/input/inputMapper.js`
+- `src/combat/actions.js`
+- `src/combat/cooldowns.js`
+- `src/combat/damageResolver.js`
 - `package.json`
 - `index.html`
 - `scripts/build.js`
@@ -24,13 +30,14 @@
 - `src/ui/layout.js`
 - `src/render/canvasRenderer.js`
 - `test/milestone1.test.js`
+- `test/milestone2.test.js`
 - `docs/project_memory.md`
 - `docs/agent_state.md`
 - `docs/work_log.md`
 
 ### Tested
 
-- `npm.cmd test` passed: 5 tests, 5 pass.
+- `npm.cmd test` passed: 24 tests, 24 pass.
 - `npm.cmd run build` passed and generated `dist`.
 - Dev server check passed with HTTP 200 at `http://localhost:5173`.
-- In-app browser verification was attempted twice but blocked by sandbox read ACL errors while loading the Browser plugin client.
+- In-app browser verification was attempted for Milestone 2 but blocked by sandbox read ACL errors while loading the Browser plugin client.

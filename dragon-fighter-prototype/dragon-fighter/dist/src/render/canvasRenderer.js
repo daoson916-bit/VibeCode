@@ -5,6 +5,11 @@ export function createCanvasRenderer(config) {
 
   function render(context, state) {
     drawBackground(context);
+    if (state.phase === config.match.initialPhase) {
+      drawDragonSelect(context, state);
+      return;
+    }
+
     drawArena(context);
     drawTeams(context, state);
     drawHud(context, state);
@@ -42,11 +47,11 @@ export function createCanvasRenderer(config) {
 
   function drawTeams(context, state) {
     drawTrainer(context, layoutData.player2Position, config.colors.player2Trainer, config.math.half);
-    drawDragon(context, layoutData.player2DragonPosition, config.layout.player2DragonWidth, config.layout.player2DragonHeight, config.colors.player2Dragon, config.math.half);
+    drawDragon(context, layoutData.player2DragonPosition, config.layout.player2DragonWidth, config.layout.player2DragonHeight, state.players.player2.dragon.color, config.math.half);
     drawStateLabel(context, layoutData.player2DragonPosition, state.players.player2.stateLabel);
 
     drawTrainer(context, layoutData.player1Position, config.colors.player1Trainer, config.math.one);
-    drawDragon(context, layoutData.player1DragonPosition, config.layout.player1DragonWidth, config.layout.player1DragonHeight, config.colors.player1Dragon, config.math.one);
+    drawDragon(context, layoutData.player1DragonPosition, config.layout.player1DragonWidth, config.layout.player1DragonHeight, state.players.player1.dragon.color, config.math.one);
     drawStateLabel(context, layoutData.player1DragonPosition, state.players.player1.stateLabel);
   }
 
@@ -57,6 +62,7 @@ export function createCanvasRenderer(config) {
     drawCommandPanel(context, layoutData.player1CommandRect, config.labels.playerCommandTitle, state.latestPlayerCommand);
     drawCommandPanel(context, layoutData.player2CommandRect, config.labels.aiCommandTitle, state.latestAiCommand);
     drawCommandReference(context);
+    drawCombatButtons(context, state);
   }
 
   function drawStatusPanel(context, rect, side) {
@@ -89,6 +95,7 @@ export function createCanvasRenderer(config) {
       context.arc(x + config.layout.cooldownIndicatorSize * config.math.half, y, config.layout.cooldownIndicatorSize * config.math.half, config.math.zero, Math.PI * config.math.two);
       context.fill();
       drawText(context, command.slice(config.math.zero, config.math.firstContentIndex), x + config.layout.cooldownIndicatorSize * config.math.half, y + config.layout.cooldownIndicatorSize, config.fonts.uiFontSizeSmall, config.fonts.boldWeight, config.colors.colorTextPrimary, 'center');
+      drawText(context, formatCooldown(cooldowns[command]), x + config.layout.cooldownIndicatorSize * config.math.half, y + config.layout.cooldownIndicatorSize + config.layout.cooldownIndicatorSize, config.fonts.uiFontSizeSmall, config.fonts.normalWeight, config.colors.colorTextSecondary, 'center');
     });
   }
 
@@ -114,6 +121,58 @@ export function createCanvasRenderer(config) {
       const x = firstItemX + index * config.layout.commandReferenceItemSpacing;
       drawText(context, command, x, rect.y + config.layout.commandTextY, config.fonts.uiFontSizeMedium, config.fonts.boldWeight, config.colors.colorTextPrimary, 'center');
     });
+  }
+
+  function drawCombatButtons(context, state) {
+    if (!config.input.enablePointerButtons) {
+      return;
+    }
+
+    layoutData.combatButtonRects.forEach((rect) => {
+      const remaining = state.players.player1.cooldowns[rect.command];
+      const fill = remaining > config.math.zero ? config.colors.combatButtonBlockedFill : config.colors.combatButtonFill;
+      drawPanel(context, rect, fill, config.colors.combatButtonBorder);
+      drawText(context, rect.command, rect.x + rect.width * config.math.half, rect.y + config.layout.panelTitleY, config.fonts.uiFontSizeSmall, config.fonts.boldWeight, config.colors.colorTextPrimary, 'center');
+      drawText(context, formatCooldown(remaining), rect.x + rect.width * config.math.half, rect.y + config.layout.commandTextY, config.fonts.uiFontSizeSmall, config.fonts.normalWeight, config.colors.colorTextSecondary, 'center');
+    });
+  }
+
+  function drawDragonSelect(context, state) {
+    drawText(context, config.labels.dragonSelectTitle, config.canvas.width * config.math.half, config.layout.dragonSelectTitleY, config.fonts.uiFontSizeLarge, config.fonts.boldWeight, config.colors.colorTextPrimary, 'center');
+    drawText(context, config.labels.dragonSelectSubtitle, config.canvas.width * config.math.half, config.layout.dragonSelectSubtitleY, config.fonts.uiFontSizeMedium, config.fonts.normalWeight, config.colors.colorTextSecondary, 'center');
+
+    config.dragons.options.forEach((dragon, index) => {
+      drawDragonOptionCard(context, dragon, layoutData.dragonSelect.optionRects[index], state.dragonSelect.selectedDragonId === dragon.id);
+    });
+
+    drawText(context, state.dragonSelect.feedback, config.canvas.width * config.math.half, config.layout.dragonSelectFeedbackY, config.fonts.uiFontSizeMedium, config.fonts.boldWeight, state.dragonSelect.selectedDragonId ? config.colors.colorTextSecondary : config.colors.colorTextWarning, 'center');
+    drawConfirmButton(context, state);
+  }
+
+  function drawDragonOptionCard(context, dragon, rect, isSelected) {
+    drawPanel(context, rect, config.colors.dragonSelectCardFill, isSelected ? config.colors.dragonSelectSelectedBorder : config.colors.dragonSelectCardBorder);
+    drawDragon(
+      context,
+      {
+        x: rect.x + rect.width * config.math.half,
+        y: rect.y + config.layout.dragonSelectVisualY
+      },
+      config.layout.dragonSelectDragonWidth,
+      config.layout.dragonSelectDragonHeight,
+      dragon.color,
+      config.math.one
+    );
+    drawText(context, dragon.name, rect.x + rect.width * config.math.half, rect.y + config.layout.dragonSelectNameY, config.fonts.uiFontSizeMedium, config.fonts.boldWeight, config.colors.colorTextPrimary, 'center');
+    drawText(context, dragon.roleLabel, rect.x + rect.width * config.math.half, rect.y + config.layout.dragonSelectRoleY, config.fonts.uiFontSizeSmall, config.fonts.boldWeight, config.colors.colorTextSecondary, 'center');
+    drawText(context, dragon.flavorText, rect.x + rect.width * config.math.half, rect.y + config.layout.dragonSelectFlavorY, config.fonts.uiFontSizeSmall, config.fonts.normalWeight, config.colors.colorTextPrimary, 'center');
+    drawText(context, config.labels.futureBonusLabel, rect.x + rect.width * config.math.half, rect.y + config.layout.dragonSelectFutureY, config.fonts.uiFontSizeSmall, config.fonts.normalWeight, config.colors.colorTextSecondary, 'center');
+  }
+
+  function drawConfirmButton(context, state) {
+    const rect = layoutData.dragonSelect.confirmButtonRect;
+    const fill = state.dragonSelect.selectedDragonId ? config.colors.dragonSelectConfirmFill : config.colors.dragonSelectConfirmBlockedFill;
+    drawPanel(context, rect, fill, config.colors.colorPanelBorder);
+    drawText(context, config.labels.dragonSelectConfirm, rect.x + rect.width * config.math.half, rect.y + config.layout.commandTextY, config.fonts.uiFontSizeMedium, config.fonts.boldWeight, config.colors.colorTextPrimary, 'center');
   }
 
   function drawTrainer(context, position, color, scale) {
@@ -161,9 +220,9 @@ export function createCanvasRenderer(config) {
     context.stroke();
   }
 
-  function drawPanel(context, rect, fillStyle) {
+  function drawPanel(context, rect, fillStyle, strokeStyle = config.colors.colorPanelBorder) {
     context.fillStyle = fillStyle;
-    context.strokeStyle = config.colors.colorPanelBorder;
+    context.strokeStyle = strokeStyle;
     context.lineWidth = config.layout.panelLineWidth;
     context.beginPath();
     context.roundRect(rect.x, rect.y, rect.width, rect.height, config.layout.panelRadius);
@@ -177,6 +236,12 @@ export function createCanvasRenderer(config) {
     context.textAlign = align;
     context.textBaseline = 'alphabetic';
     context.fillText(text, x, y);
+  }
+
+  function formatCooldown(remaining) {
+    return remaining > config.math.zero
+      ? remaining.toFixed(config.layout.cooldownDisplayDecimals)
+      : config.labels.cooldownReadyLabel;
   }
 
   return { render, layoutData };

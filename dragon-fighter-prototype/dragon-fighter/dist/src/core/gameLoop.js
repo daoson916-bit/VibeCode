@@ -1,3 +1,5 @@
+import { updateCombatTimers } from '../combat/cooldowns.js';
+
 export function startGameLoop({ config, canvas, renderer, state, logger }) {
   const context = canvas.getContext('2d');
   let previousTime = performance.now();
@@ -12,6 +14,7 @@ export function startGameLoop({ config, canvas, renderer, state, logger }) {
   function frame(currentTime) {
     const deltaSeconds = (currentTime - previousTime) / config.math.millisecondsPerSecond;
     previousTime = currentTime;
+    Object.assign(state, updateCombatTimers(state, config, deltaSeconds));
     renderer.render(context, state, deltaSeconds);
     requestAnimationFrame(frame);
   }

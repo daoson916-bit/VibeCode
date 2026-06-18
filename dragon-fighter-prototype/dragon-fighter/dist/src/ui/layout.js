@@ -67,6 +67,40 @@ export function createLayout(config) {
     player2DragonPosition: {
       x: layout.player2DragonPositionX,
       y: layout.player2DragonPositionY
+    },
+    dragonSelect: createDragonSelectLayout(config),
+    combatButtonRects: createCombatButtonRects(config)
+  };
+}
+
+function createDragonSelectLayout(config) {
+  const { layout } = config;
+
+  return {
+    optionRects: config.dragons.options.map((dragon, index) => ({
+      id: dragon.id,
+      x: layout.dragonSelectFirstCardX + index * (layout.dragonSelectCardWidth + layout.dragonSelectCardGap),
+      y: layout.dragonSelectCardY,
+      width: layout.dragonSelectCardWidth,
+      height: layout.dragonSelectCardHeight
+    })),
+    confirmButtonRect: {
+      x: layout.dragonSelectConfirmX,
+      y: layout.dragonSelectConfirmY,
+      width: layout.dragonSelectConfirmWidth,
+      height: layout.dragonSelectConfirmHeight
     }
   };
+}
+
+function createCombatButtonRects(config) {
+  const { layout } = config;
+
+  return config.input.validCommands.map((command, index) => ({
+    command,
+    x: layout.combatButtonFirstX + index * (layout.combatButtonWidth + layout.combatButtonGap),
+    y: layout.combatButtonY,
+    width: layout.combatButtonWidth,
+    height: layout.combatButtonHeight
+  }));
 }

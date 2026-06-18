@@ -37,7 +37,9 @@ export const CONFIG = {
     // Enables render lifecycle logs. Recommended: false unless diagnosing Canvas issues.
     renderEvents: false,
     // Enables state creation logs. Recommended: true during early milestones.
-    stateEvents: true
+    stateEvents: true,
+    // Enables pointer selection logs. Recommended: true while tuning Canvas hit areas.
+    inputEvents: true
   },
   math: {
     // Zero value used for empty timers and origin math. Recommended: keep at 0.
@@ -79,7 +81,11 @@ export const CONFIG = {
     // Minimum HP clamp. Prototype value: 0.
     minHp: 0,
     // Initial static screen phase for Milestone 1. Recommended: static-arena.
-    initialPhase: 'static-arena',
+    initialPhase: 'dragon-select',
+    // Static arena phase shown after the player confirms a dragon. Recommended: static-arena.
+    staticArenaPhase: 'static-arena',
+    // Phase that accepts combat commands in Milestone 2. Recommended: match the current arena phase until countdown arrives.
+    activeCombatPhase: 'static-arena',
     // Whether simultaneous defeat creates a draw in later milestones. Recommended: true.
     drawOnSimultaneousDefeat: true,
     // Whether equal HP at timer end creates a draw in later milestones. Recommended: true.
@@ -127,9 +133,13 @@ export const CONFIG = {
     // Enables future microphone input. Recommended: false until voice command work starts.
     enableVoiceInput: false,
     // Enables future keyboard input. Recommended: false for static Milestone 1.
-    enableKeyboardInput: false,
+    enableKeyboardInput: true,
     // Enables future Canvas fallback buttons. Recommended: false until commands are live.
-    enablePointerButtons: false,
+    enablePointerButtons: true,
+    // Pointer event used for Canvas selection. Recommended: pointerup for mouse and touch.
+    pointerSelectEvent: 'pointerup',
+    // Keyboard event used for command shortcuts. Recommended: keydown.
+    keyboardCommandEvent: 'keydown',
     // Minimum voice confidence for accepting speech. Recommended range: 0.5-0.95.
     voiceConfidenceThreshold: 0.75,
     // Failed command display duration in seconds. Recommended range: 1-3.
@@ -177,7 +187,33 @@ export const CONFIG = {
     // Command reference heading. Recommended: short text.
     commandReferenceTitle: 'Command Reference',
     // HP label shown in status panels. Recommended: short text.
-    hpLabel: 'HP'
+    hpLabel: 'HP',
+    // Failure reason shown for commands that are not valid full words. Recommended: Unknown Command.
+    unknownCommandReason: 'Unknown Command',
+    // Failure reason shown when an action is still cooling down. Recommended: Cooldown.
+    cooldownReason: 'Cooldown',
+    // Failure reason shown when an actor is already defeated. Recommended: Defeated.
+    defeatedReason: 'Defeated',
+    // Failure reason shown when commands are attempted outside active combat. Recommended: Match Inactive.
+    inactiveReason: 'Match Inactive',
+    // Success text used internally by tests and logs. Recommended: Success.
+    successReason: 'Success',
+    // Label shown when an HP reaches zero. Recommended: Defeated.
+    defeatedState: 'Defeated',
+    // Cooldown text shown when an action can be used. Recommended: Ready.
+    cooldownReadyLabel: 'Ready',
+    // Dragon Select title shown before the static arena. Recommended: short title text.
+    dragonSelectTitle: 'Choose Your Dragon',
+    // Dragon Select subtitle. Recommended: one short sentence.
+    dragonSelectSubtitle: 'Pick one suggested dragon for this prototype duel.',
+    // Confirm button text for Dragon Select. Recommended: one short command.
+    dragonSelectConfirm: 'Confirm',
+    // Feedback shown before a blocked confirm. Recommended: short status text.
+    dragonSelectReadyFeedback: 'Select a dragon to continue.',
+    // Feedback shown when Confirm is pressed without a selected dragon. Recommended: clear short warning.
+    dragonSelectBlockedFeedback: 'Choose a dragon first.',
+    // Small display heading for future-only modifiers. Recommended: short label.
+    futureBonusLabel: 'Future modifier'
   },
   colors: {
     // Main canvas background color. Recommended: readable dark or mid-tone value.
@@ -225,7 +261,23 @@ export const CONFIG = {
     // Warning or failed-command text color. Recommended: red-orange.
     colorTextWarning: '#ff6b6b',
     // Full-screen overlay tint reserved for later milestones. Recommended: translucent black.
-    overlayBackgroundColor: 'rgba(3, 8, 15, 0.78)'
+    overlayBackgroundColor: 'rgba(3, 8, 15, 0.78)',
+    // Dragon Select card fill color. Recommended: dark translucent color.
+    dragonSelectCardFill: 'rgba(10, 26, 48, 0.92)',
+    // Dragon Select selected-card border color. Recommended: bright accent.
+    dragonSelectSelectedBorder: '#ffd166',
+    // Dragon Select card border color. Recommended: readable cool color.
+    dragonSelectCardBorder: '#79aee6',
+    // Dragon Select confirm button fill. Recommended: saturated readable accent.
+    dragonSelectConfirmFill: '#2f9e74',
+    // Dragon Select blocked confirm button fill. Recommended: muted gray-blue.
+    dragonSelectConfirmBlockedFill: '#4f6075',
+    // Canvas combat button fill. Recommended: dark translucent color.
+    combatButtonFill: 'rgba(16, 42, 76, 0.94)',
+    // Canvas combat button blocked fill. Recommended: muted warning color.
+    combatButtonBlockedFill: 'rgba(99, 61, 42, 0.94)',
+    // Canvas combat button border color. Recommended: bright readable accent.
+    combatButtonBorder: '#87d5ff'
   },
   fonts: {
     // Font family used for Canvas text. Recommended: system-safe sans-serif stack.
@@ -341,6 +393,114 @@ export const CONFIG = {
     // Shadow ellipse height in pixels. Recommended range: 8-28.
     shadowHeight: 18,
     // Shadow alpha for grounded characters. Recommended range: 0.1-0.5.
-    shadowAlpha: 0.25
+    shadowAlpha: 0.25,
+    // Dragon Select heading y position in pixels. Recommended range: 64-130.
+    dragonSelectTitleY: 92,
+    // Dragon Select subtitle y position in pixels. Recommended range: 108-160.
+    dragonSelectSubtitleY: 132,
+    // Dragon Select card width in pixels. Recommended range: 260-340.
+    dragonSelectCardWidth: 320,
+    // Dragon Select card height in pixels. Recommended range: 300-420.
+    dragonSelectCardHeight: 350,
+    // Dragon Select card top y position in pixels. Recommended range: 170-240.
+    dragonSelectCardY: 190,
+    // Dragon Select first card x position in pixels. Recommended range: 120-220.
+    dragonSelectFirstCardX: 120,
+    // Dragon Select horizontal gap between cards in pixels. Recommended range: 40-90.
+    dragonSelectCardGap: 40,
+    // Dragon Select dragon visual center y in each card. Recommended range: 90-160.
+    dragonSelectVisualY: 128,
+    // Dragon Select dragon visual width in pixels. Recommended range: 110-180.
+    dragonSelectDragonWidth: 142,
+    // Dragon Select dragon visual height in pixels. Recommended range: 70-130.
+    dragonSelectDragonHeight: 92,
+    // Dragon Select option name baseline offset in pixels. Recommended range: 185-225.
+    dragonSelectNameY: 210,
+    // Dragon Select role baseline offset in pixels. Recommended range: 220-260.
+    dragonSelectRoleY: 242,
+    // Dragon Select flavor first-line baseline offset in pixels. Recommended range: 260-300.
+    dragonSelectFlavorY: 282,
+    // Dragon Select future bonus baseline offset in pixels. Recommended range: 315-345.
+    dragonSelectFutureY: 324,
+    // Dragon Select confirm button x position in pixels. Recommended range: 520-620.
+    dragonSelectConfirmX: 550,
+    // Dragon Select confirm button y position in pixels. Recommended range: 580-650.
+    dragonSelectConfirmY: 604,
+    // Dragon Select confirm button width in pixels. Recommended range: 160-240.
+    dragonSelectConfirmWidth: 180,
+    // Dragon Select confirm button height in pixels. Recommended range: 46-68.
+    dragonSelectConfirmHeight: 56,
+    // Dragon Select feedback y position in pixels. Recommended range: 560-610.
+    dragonSelectFeedbackY: 574,
+    // Canvas combat button width in pixels. Recommended range: 96-150.
+    combatButtonWidth: 118,
+    // Canvas combat button height in pixels. Recommended range: 42-70.
+    combatButtonHeight: 64,
+    // Canvas combat button first x position in pixels. Recommended range: 390-500.
+    combatButtonFirstX: 392,
+    // Canvas combat button y position in pixels. Recommended range: 520-590.
+    combatButtonY: 548,
+    // Canvas combat button horizontal gap in pixels. Recommended range: 8-20.
+    combatButtonGap: 14,
+    // Cooldown decimal places shown in HUD and buttons. Recommended range: 0-1.
+    cooldownDisplayDecimals: 1
+  },
+  dragons: {
+    // Enemy dragon used in the static arena until AI selection exists. Recommended: stable placeholder data.
+    enemyDefault: {
+      id: 'rival',
+      name: 'Rival Drake',
+      roleLabel: 'Balanced Rival',
+      flavorText: 'A steady opponent waiting across the arena.',
+      color: '#ff806d',
+      futureModifiers: {
+        attackMultiplier: 1,
+        defenceMultiplier: 1,
+        skillCooldownMultiplier: 1,
+        blockDurationMultiplier: 1
+      }
+    },
+    // Exactly three suggested player dragons for Milestone 1 selection. Recommended: keep roles display-only until Milestone 2.
+    options: [
+      {
+        id: 'ember',
+        name: 'Ember',
+        roleLabel: 'Attack Focus',
+        flavorText: 'Future bonus: stronger Attack, weaker Defence',
+        color: '#ff7a45',
+        futureModifiers: {
+          attackMultiplier: 1.15,
+          defenceMultiplier: 0.9,
+          skillCooldownMultiplier: 1,
+          blockDurationMultiplier: 1
+        }
+      },
+      {
+        id: 'tide',
+        name: 'Tide',
+        roleLabel: 'Defence Focus',
+        flavorText: 'Future bonus: stronger Defence, weaker Attack',
+        color: '#4db8ff',
+        futureModifiers: {
+          attackMultiplier: 0.9,
+          defenceMultiplier: 1.15,
+          skillCooldownMultiplier: 1,
+          blockDurationMultiplier: 1
+        }
+      },
+      {
+        id: 'volt',
+        name: 'Volt',
+        roleLabel: 'Skill Focus',
+        flavorText: 'Future bonus: faster Skill, weaker Block',
+        color: '#ffd84d',
+        futureModifiers: {
+          attackMultiplier: 1,
+          defenceMultiplier: 1,
+          skillCooldownMultiplier: 0.9,
+          blockDurationMultiplier: 0.9
+        }
+      }
+    ]
   }
 };
