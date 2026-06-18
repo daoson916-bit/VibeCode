@@ -1,4 +1,4 @@
-import { DRAGON_IMAGE_MANIFEST, TEMPORARY_PRIVATE_PROTOTYPE_ASSET_WARNING } from './assets/assetManifest.js';
+import { BACKGROUND_IMAGE_MANIFEST, DRAGON_IMAGE_MANIFEST, TEMPORARY_PRIVATE_PROTOTYPE_ASSET_WARNING } from './assets/assetManifest.js';
 
 // Central Dragon Fighter tuning file.
 // Designers should adjust playtest values here instead of editing render, state, loop, or input code.
@@ -84,6 +84,16 @@ export const CONFIG = {
     dragonImageRoot: 'public/assets/dragons',
     // Manifest of local dragon image placeholders. Recommended: replace entries when licensed art is available.
     dragonImages: DRAGON_IMAGE_MANIFEST,
+    // Manifest of local arena background images. Recommended: one active arena during the prototype.
+    backgroundImages: BACKGROUND_IMAGE_MANIFEST,
+    // Arena background placement inside the Canvas. Recommended: match the design Canvas bounds.
+    arenaBackground: {
+      assetKey: 'arena',
+      x: 0,
+      y: 0,
+      width: 1280,
+      height: 720
+    },
     // Warning shown in metadata and logs so placeholders are not mistaken for production assets.
     privatePrototypeWarning: TEMPORARY_PRIVATE_PROTOTYPE_ASSET_WARNING,
     // Initial image state before browser loading starts. Recommended: pending.

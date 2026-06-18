@@ -22,6 +22,14 @@ export function createCanvasRenderer(config, assetStore = null) {
   }
 
   function drawArena(context) {
+    const backgroundImage = assetStore?.getBackgroundImage(config.assets.arenaBackground.assetKey);
+
+    if (backgroundImage) {
+      const rect = config.assets.arenaBackground;
+      context.drawImage(backgroundImage, rect.x, rect.y, rect.width, rect.height);
+      return;
+    }
+
     const arena = layoutData.arenaBounds;
     context.fillStyle = config.colors.arenaFar;
     context.fillRect(config.math.zero, arena.horizonY, config.canvas.width, arena.floorBottomY - arena.horizonY);

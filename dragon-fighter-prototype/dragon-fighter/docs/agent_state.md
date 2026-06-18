@@ -31,7 +31,11 @@ Post-Milestone 3 - Private placeholder dragon asset pass.
 - Verified the dev server and local image asset URLs respond at `http://localhost:5173`.
 - Confirmed the Dragon Select images render with a Microsoft Edge headless browser screenshot.
 - Confirmed missing-image fallback coverage through unit tests and a local `404` probe for a missing dragon asset URL.
+- Added `public/assets/backgrounds/arena.png` as the manifest-driven arena background.
+- Reused the asset store for background image loading and kept the generated Canvas arena as fallback.
+- Added tests for arena background manifest presence and fallback behavior.
+- Verified tests/build pass and the dev server serves the arena background asset.
 
 ## Next Action
 
-Replace temporary wiki placeholders with licensed production-safe assets before any public deployment; then manually review the selected dragon in the arena after choosing/confirming a dragon.
+Manually review the selected dragon and new arena background together after choosing/confirming a dragon; replace temporary wiki placeholders with licensed production-safe assets before any public deployment.

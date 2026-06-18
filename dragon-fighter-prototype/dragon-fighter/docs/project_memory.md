@@ -18,3 +18,4 @@
 - Dragon images are now manifest-driven local placeholder assets under `public/assets/dragons`.
 - Dragon Mania Legends Wiki images are temporary private prototype placeholders only; they must be replaced before public release or deployment unless explicit permission/licensing is confirmed.
 - Image loading is handled by an asset store with config-controlled logs, and Canvas shape dragons remain as fallback if a bitmap is missing or fails.
+- Arena background art is loaded through the same manifest-driven asset store, with the generated Canvas arena kept as fallback.

@@ -1,13 +1,13 @@
 export function createAssetStore(config, logger) {
   const imageRecords = createImageRecords(config);
 
-  function loadDragonImages() {
+  function loadImages() {
     if (typeof Image === 'undefined') {
       logger.log('assetEvents', 'image loading skipped outside browser');
       return imageRecords;
     }
 
-    Object.values(config.assets.dragonImages).forEach((asset) => {
+    getImageAssets(config).forEach((asset) => {
       const image = new Image();
       imageRecords[asset.key] = {
         asset,
@@ -15,7 +15,7 @@ export function createAssetStore(config, logger) {
         status: config.assets.imageStatusLoading
       };
 
-      logger.log('assetEvents', 'dragon image loading', {
+      logger.log('assetEvents', 'image loading', {
         key: asset.key,
         path: asset.path,
         warning: asset.licenseWarning
@@ -23,12 +23,12 @@ export function createAssetStore(config, logger) {
 
       image.addEventListener(config.assets.imageLoadEvent, () => {
         imageRecords[asset.key].status = config.assets.imageStatusLoaded;
-        logger.log('assetEvents', 'dragon image loaded', { key: asset.key, path: asset.path });
+        logger.log('assetEvents', 'image loaded', { key: asset.key, path: asset.path });
       });
 
       image.addEventListener(config.assets.imageErrorEvent, () => {
         imageRecords[asset.key].status = config.assets.imageStatusError;
-        logger.log('assetEvents', 'dragon image failed, using Canvas fallback', { key: asset.key, path: asset.path });
+        logger.log('assetEvents', 'image failed, using Canvas fallback', { key: asset.key, path: asset.path });
       });
 
       image.src = asset.path;
@@ -41,16 +41,26 @@ export function createAssetStore(config, logger) {
     return getLoadedDragonImage({ imageRecords }, config, assetKey);
   }
 
+  function getBackgroundImage(assetKey) {
+    return getLoadedAssetImage({ imageRecords }, config, assetKey);
+  }
+
   return {
     imageRecords,
+    loadImages,
     loadDragonImages,
-    getDragonImage
+    getDragonImage,
+    getBackgroundImage
   };
+
+  function loadDragonImages() {
+    return loadImages();
+  }
 }
 
 export function createImageRecords(config) {
   return Object.fromEntries(
-    Object.values(config.assets.dragonImages).map((asset) => [
+    getImageAssets(config).map((asset) => [
       asset.key,
       {
         asset,
@@ -61,7 +71,18 @@ export function createImageRecords(config) {
   );
 }
 
+export function getImageAssets(config) {
+  return [
+    ...Object.values(config.assets.dragonImages),
+    ...Object.values(config.assets.backgroundImages)
+  ];
+}
+
 export function getLoadedDragonImage(assetStore, config, assetKey) {
+  return getLoadedAssetImage(assetStore, config, assetKey);
+}
+
+export function getLoadedAssetImage(assetStore, config, assetKey) {
   const record = assetStore?.imageRecords?.[assetKey];
 
   if (record?.status !== config.assets.imageStatusLoaded) {

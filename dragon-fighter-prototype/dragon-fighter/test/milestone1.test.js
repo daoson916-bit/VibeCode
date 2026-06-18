@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { CONFIG } from '../src/config.js';
-import { createImageRecords, getLoadedDragonImage } from '../src/assets/assetLoader.js';
+import { createImageRecords, getLoadedAssetImage, getLoadedDragonImage } from '../src/assets/assetLoader.js';
 import { confirmDragonSelection, createInitialGameState, selectDragon } from '../src/core/gameState.js';
 import { createLayout } from '../src/ui/layout.js';
 
@@ -36,6 +36,15 @@ test('each Dragon Select option references a valid asset key', () => {
     assert.ok(asset);
     assert.equal(asset.key, dragon.imageAssetKey);
   });
+});
+
+test('arena background asset manifest points at the local background image', () => {
+  const assetKey = CONFIG.assets.arenaBackground.assetKey;
+  const asset = CONFIG.assets.backgroundImages[assetKey];
+
+  assert.ok(asset);
+  assert.equal(asset.path, 'public/assets/backgrounds/arena.png');
+  assert.ok(existsSync(asset.path));
 });
 
 test('initial state starts at Dragon Select', () => {
@@ -94,6 +103,16 @@ test('renderer image helper falls back when image is missing or failed', () => {
 
   imageRecords[assetKey].status = CONFIG.assets.imageStatusError;
   assert.equal(getLoadedDragonImage({ imageRecords }, CONFIG, assetKey), null);
+});
+
+test('arena background helper falls back when image is missing or failed', () => {
+  const imageRecords = createImageRecords(CONFIG);
+  const assetKey = CONFIG.assets.arenaBackground.assetKey;
+
+  assert.equal(getLoadedAssetImage({ imageRecords }, CONFIG, assetKey), null);
+
+  imageRecords[assetKey].status = CONFIG.assets.imageStatusError;
+  assert.equal(getLoadedAssetImage({ imageRecords }, CONFIG, assetKey), null);
 });
 
 test('initial arena state labels are Idle', () => {

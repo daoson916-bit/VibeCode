@@ -18,7 +18,7 @@ const renderer = createCanvasRenderer(CONFIG, assetStore);
 
 logger.log('appEvents', 'app started');
 logger.log('stateEvents', 'initial state created', state);
-assetStore.loadDragonImages();
+assetStore.loadImages();
 
 registerPointerInput({
   canvas,

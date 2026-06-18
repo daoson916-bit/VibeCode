@@ -51,3 +51,13 @@ export const DRAGON_IMAGE_MANIFEST = {
     licenseWarning: TEMPORARY_PRIVATE_PROTOTYPE_ASSET_WARNING
   }
 };
+
+export const BACKGROUND_IMAGE_MANIFEST = {
+  arena: {
+    key: 'arena',
+    displayName: 'Arena background',
+    path: 'public/assets/backgrounds/arena.png',
+    localFile: 'arena.png',
+    sourceNote: 'Local arena background placeholder for the Dragon Fighter prototype.'
+  }
+};
