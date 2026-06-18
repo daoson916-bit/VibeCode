@@ -77,3 +77,9 @@
 - `npm.cmd run build` passed and generated `dist`.
 - Local static server check passed with HTTP 200 at `http://127.0.0.1:5174/index.html`; `src/gameCore.js` and a dragon asset also returned HTTP 200.
 - Browser screenshot verification was blocked because the in-app Browser `iab` surface and local Edge/Chrome binaries were unavailable.
+
+### Single File Cleanup
+
+- Inlined the root `src/gameCore.js` config and helper logic back into `index.html`.
+- Removed the extra root `src`, `test`, `scripts`, and `package.json` files so the active Canvas game is one single file.
+- Updated memory docs to record that active game config, combat modifier helpers, state, input, and rendering logic now live inline in root `index.html`.

@@ -35,15 +35,15 @@ Post-Milestone 3 - Root static Canvas dragon trait pass.
 - Reused the asset store for background image loading and kept the generated Canvas arena as fallback.
 - Added tests for arena background manifest presence and fallback behavior.
 - Verified tests/build pass and the dev server serves the arena background asset.
-- Current active game source is the root `index.html`, with shared helper/config logic in root `src/gameCore.js`.
+- Current active game source is the root `index.html`; all active Canvas game config, state, combat helpers, and rendering logic are inline in that single file.
 - Extended the Canvas-only Dragon Select to exactly three asset-backed dragons: Ember, Tide, and Moss.
 - Added centralized role/modifier config for Attack Focus, Defence Focus, and Balanced.
 - Routed player Attack damage, Defence duration, and Skill cooldown through combat helper logic.
 - Battle rendering uses selected dragon asset data and opposite player/enemy facing flags.
-- Added Node tests for modifier config, selected dragon state, modified combat values, Balanced near-base behavior, and facing render data.
-- Verified `npm.cmd test` and `npm.cmd run build` pass.
-- Local static server responds at `http://127.0.0.1:5174/index.html`; in-app Browser and local Edge/Chrome binaries were unavailable for screenshot verification this turn.
+- Removed the extra root `src`, `test`, `scripts`, and `package.json` files so the active Canvas game is one single file.
+- Verified the inline single-file game contains the Dragon Select, all three modifier configs, combat modifier usage, selected dragon rendering, and opposite facing flags.
+- Local HTTP check was previously run at `http://127.0.0.1:5174/index.html`; in-app Browser and local Edge/Chrome binaries were unavailable for screenshot verification.
 
 ## Next Action
 
-Use `npm.cmd run serve -- 5174` for local review; replace temporary dragon placeholders with licensed production-safe assets before any public deployment.
+Open the root `index.html` directly or serve the repo with any static file server for review; replace temporary dragon placeholders with licensed production-safe assets before any public deployment.

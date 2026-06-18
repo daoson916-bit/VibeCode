@@ -4,14 +4,14 @@
 
 - The active Dragon Fighter project lives in `dragon-fighter-prototype/dragon-fighter`.
 - The deployed/static game currently runs from the repository root `index.html`.
-- Root `src/gameCore.js` centralizes active dragon config and combat modifier helpers for the static Canvas version.
+- The root `index.html` is the single active Canvas game file and contains the active dragon config, combat modifier helpers, state, input, and renderer logic inline.
 - Milestone 1 is a static Canvas-only battle screen; no real command handling or combat is implemented yet.
 - All gameplay, timing, UI, render, logging, server, and build tunables are centralized in `src/config.js`.
 - HTML stays minimal: it contains only the Canvas, basic page sizing CSS, and the module script.
 - The initial state labels for both dragons are `Idle`.
 - Command vocabulary for the prototype is exactly `Attack`, `Defence`, `Block`, and `Skill`.
 - Milestone 1 now starts with a Canvas-only Dragon Select phase before the static arena.
-- Dragon Select has exactly three selectable dragons in the static version: Ember, Tide, and Moss.
+- Dragon Select has exactly three selectable dragons in the single-file static version: Ember, Tide, and Moss.
 - Milestone 2 uses one shared command path for keyboard and Canvas button inputs.
 - Dragon role modifiers affect combat in helper logic: Attack Focus boosts Attack and shortens Defence, Defence Focus extends Defence and weakens Attack, Balanced keeps base Attack/Defence with a small Skill cooldown bonus.
 - Milestone 3 phase flow is `dragon-select` -> `countdown` -> `active-match` -> `result`.
