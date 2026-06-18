@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-Post-Milestone 3 - Private placeholder dragon asset pass.
+Post-Milestone 3 - Root static Canvas dragon trait pass.
 
 ## Completed This Turn
 
@@ -35,7 +35,15 @@ Post-Milestone 3 - Private placeholder dragon asset pass.
 - Reused the asset store for background image loading and kept the generated Canvas arena as fallback.
 - Added tests for arena background manifest presence and fallback behavior.
 - Verified tests/build pass and the dev server serves the arena background asset.
+- Current active game source is the root `index.html`, with shared helper/config logic in root `src/gameCore.js`.
+- Extended the Canvas-only Dragon Select to exactly three asset-backed dragons: Ember, Tide, and Moss.
+- Added centralized role/modifier config for Attack Focus, Defence Focus, and Balanced.
+- Routed player Attack damage, Defence duration, and Skill cooldown through combat helper logic.
+- Battle rendering uses selected dragon asset data and opposite player/enemy facing flags.
+- Added Node tests for modifier config, selected dragon state, modified combat values, Balanced near-base behavior, and facing render data.
+- Verified `npm.cmd test` and `npm.cmd run build` pass.
+- Local static server responds at `http://127.0.0.1:5174/index.html`; in-app Browser and local Edge/Chrome binaries were unavailable for screenshot verification this turn.
 
 ## Next Action
 
-Manually review the selected dragon and new arena background together after choosing/confirming a dragon; replace temporary wiki placeholders with licensed production-safe assets before any public deployment.
+Use `npm.cmd run serve -- 5174` for local review; replace temporary dragon placeholders with licensed production-safe assets before any public deployment.

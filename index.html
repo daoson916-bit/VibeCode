@@ -35,50 +35,15 @@
   <body>
     <canvas id="game" width="1100" height="620"></canvas>
 
+    <script src="src/gameCore.js"></script>
     <script>
       (() => {
         const canvas = document.getElementById("game");
         const ctx = canvas.getContext("2d");
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-        const cfg = {
-          matchTime: 60,
-          maxHp: 100,
-          attackDamage: 12,
-          ultimateDamage: 35,
-          enemyDamage: 10,
-          attackCd: 1.0,
-          defenceCd: 5.0,
-          ultimateCd: 9.0,
-          defenceTime: 3.0,
-          defenceReduce: 0.35,
-          enemyMinWait: 1.3,
-          enemyMaxWait: 2.4,
-          assets: {
-            background: "dragon-fighter-prototype/dragon-fighter/public/assets/backgrounds/arena.png",
-            player: "dragon-fighter-prototype/dragon-fighter/public/assets/dragons/fire-dragon-adult.png",
-            enemy: "dragon-fighter-prototype/dragon-fighter/public/assets/dragons/moss-boss-dragon-enemy.png"
-          }
-        };
-
-        const state = {
-          phase: "ready",
-          time: cfg.matchTime,
-          playerHp: cfg.maxHp,
-          enemyHp: cfg.maxHp,
-          lastHeard: "-",
-          accepted: "-",
-          playerState: "Ready",
-          enemyState: "Ready",
-          message: "Press microphone and say Attack, Defence, or Ultimate.",
-          note: "Say: Attack, Defence, Ultimate. Fallback keys: A / D / U / R.",
-          result: "",
-          cd: { attack: 0, defence: 0, ultimate: 0 },
-          defenceTimer: 0,
-          enemyTimer: 1.6,
-          shake: 0,
-          particles: []
-        };
+        const core = window.GameCore;
+        const cfg = core.GAME_CONFIG;
+        const state = core.createInitialState(cfg);
 
         const images = {};
         const buttons = [];
@@ -99,6 +64,7 @@
         }
 
         Object.entries(cfg.assets).forEach(([key, src]) => loadImage(key, src));
+        cfg.dragons.forEach((dragon) => loadImage(dragon.id, dragon.asset));
 
         function reset() {
           state.phase = "playing";
@@ -140,7 +106,18 @@
           return null;
         }
 
+        function confirmDragon() {
+          const dragon = core.getSelectedDragon(cfg, state);
+          state.phase = "playing";
+          state.message = `${dragon.name} enters battle.`;
+          state.note = "Use canvas buttons, keyboard, or voice commands.";
+          state.playerState = dragon.role;
+          state.enemyState = "Ready";
+          log("dragon_confirmed", { dragonId: dragon.id, role: dragon.role });
+        }
+
         function useCommand(cmd, source = "button") {
+          if (state.phase === "select") return;
           if (state.phase !== "playing") reset();
 
           state.accepted = cmd.toUpperCase();
@@ -153,25 +130,27 @@
           }
 
           if (cmd === "attack") {
-            state.cd.attack = cfg.attackCd;
-            state.enemyHp = clamp(state.enemyHp - cfg.attackDamage, 0, cfg.maxHp);
+            const damage = core.modifiedAttackDamage(cfg, state);
+            state.cd.attack = core.getCommandCooldown(cfg, state, "attack");
+            state.enemyHp = clamp(state.enemyHp - damage, 0, cfg.maxHp);
             state.playerState = "Attack";
             state.enemyState = "Hit";
-            state.message = `Attack hit. Enemy -${cfg.attackDamage} HP`;
+            state.message = `Attack hit. Enemy -${damage} HP`;
             hit(780, 315, "#fb923c", 18);
             state.shake = 0.15;
           }
 
           if (cmd === "defence") {
-            state.cd.defence = cfg.defenceCd;
-            state.defenceTimer = cfg.defenceTime;
+            const duration = core.modifiedDefenceDuration(cfg, state);
+            state.cd.defence = core.getCommandCooldown(cfg, state, "defence");
+            state.defenceTimer = duration;
             state.playerState = "Defence";
-            state.message = `Defence shield active for ${cfg.defenceTime} seconds`;
+            state.message = `Defence shield active for ${duration.toFixed(1)} seconds`;
             shield(320, 315);
           }
 
           if (cmd === "ultimate") {
-            state.cd.ultimate = cfg.ultimateCd;
+            state.cd.ultimate = core.getCommandCooldown(cfg, state, "ultimate");
             state.enemyHp = clamp(state.enemyHp - cfg.ultimateDamage, 0, cfg.maxHp);
             state.playerState = "Ultimate";
             state.enemyState = "Crushed";
@@ -314,7 +293,7 @@
         }
 
         function cdBox(x, y, label, key, color) {
-          const max = key === "attack" ? cfg.attackCd : key === "defence" ? cfg.defenceCd : cfg.ultimateCd;
+          const max = core.getCommandCooldown(cfg, state, key);
           const ready = state.cd[key] <= 0;
 
           rr(x, y, 118, 50, 14, ready ? "#123326dd" : "#3b2230dd", color);
@@ -342,6 +321,17 @@
         }
 
         function drawControls() {
+          if (state.phase === "select") {
+            const select = cfg.dragonSelect;
+            canvasButton("confirmDragon", select.confirm.x, select.confirm.y, select.confirm.w, select.confirm.h, "Confirm Dragon", "#f6c453dd", "#f6c453");
+            ctx.textAlign = "center";
+            ctx.fillStyle = "#cbd5e1";
+            ctx.font = "14px system-ui";
+            ctx.fillText(state.note, 550, 610);
+            ctx.textAlign = "left";
+            return;
+          }
+
           buttons.length = 0;
           canvasButton("mic", 110, 548, 150, 44, listening ? "Stop Mic" : "Start Mic", listening ? "#164e35dd" : "#f6c453dd", "#f6c453");
           canvasButton("attack", 286, 548, 120, 44, "Attack", "#402313dd", "#fb923c");
@@ -354,6 +344,63 @@
           ctx.font = "14px system-ui";
           ctx.fillText(state.note, 550, 610);
           ctx.textAlign = "left";
+        }
+
+        function drawDragonSelect() {
+          buttons.length = 0;
+          drawArena();
+          ctx.fillStyle = "#020617aa";
+          ctx.fillRect(0, 0, 1100, 620);
+
+          const select = cfg.dragonSelect;
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#fff4d6";
+          ctx.font = "bold 42px system-ui";
+          ctx.fillText("Choose Your Dragon", 550, select.titleY);
+          ctx.fillStyle = "#cbd5e1";
+          ctx.font = "18px system-ui";
+          ctx.fillText("Each role changes Attack, Defence, or Skill timing in battle.", 550, select.subtitleY);
+
+          cfg.dragons.forEach((dragon, index) => {
+            const x = select.firstCardX + index * (select.cardW + select.cardGap);
+            const selected = state.selectedDragonId === dragon.id;
+            buttons.push({ id: `select:${dragon.id}`, x, y: select.cardY, w: select.cardW, h: select.cardH });
+            rr(x, select.cardY, select.cardW, select.cardH, 20, selected ? "#1f2937f2" : "#0f172adf", selected ? "#f6c453" : "#ffffff33");
+            drawDragonImage(dragon.id, x + select.cardW / 2, select.imageY, select.imageW, select.imageH, cfg.facing.player.flip);
+            ctx.fillStyle = "#fff4d6";
+            ctx.font = "bold 25px system-ui";
+            ctx.fillText(dragon.name, x + select.cardW / 2, select.cardY + 165);
+            ctx.fillStyle = selected ? "#f6c453" : "#93c5fd";
+            ctx.font = "bold 17px system-ui";
+            ctx.fillText(dragon.role, x + select.cardW / 2, select.cardY + 193);
+            ctx.fillStyle = "#cbd5e1";
+            ctx.font = "14px system-ui";
+            wrapText(dragon.flavor, x + select.cardW / 2, select.cardY + 224, select.cardW - 46, 18);
+            ctx.fillStyle = "#bbf7d0";
+            ctx.font = "bold 13px system-ui";
+            ctx.fillText(`ATK x${dragon.modifiers.attackDamage}  DEF x${dragon.modifiers.defenceDuration}  SKILL x${dragon.modifiers.skillCooldown}`, x + select.cardW / 2, select.cardY + 300);
+          });
+
+          const selectedDragon = core.getSelectedDragon(cfg, state);
+          state.note = `${selectedDragon.name}: ${selectedDragon.role}`;
+          drawControls();
+          ctx.textAlign = "left";
+        }
+
+        function wrapText(text, x, y, maxWidth, lineHeight) {
+          const words = text.split(" ");
+          let line = "";
+          words.forEach((word) => {
+            const next = line ? `${line} ${word}` : word;
+            if (ctx.measureText(next).width > maxWidth && line) {
+              ctx.fillText(line, x, y);
+              line = word;
+              y += lineHeight;
+            } else {
+              line = next;
+            }
+          });
+          if (line) ctx.fillText(line, x, y);
         }
 
         function fallbackDragon(x, y, flip, body, wing, horn) {
@@ -410,7 +457,7 @@
           const image = images[key];
 
           if (!image || !image.complete || image.naturalWidth === 0) {
-            fallbackDragon(x, y, flip, key === "player" ? "#d6a44c" : "#a855f7", key === "player" ? "#8b5a2b" : "#6d28d9", key === "player" ? "#f3d179" : "#fca5a5");
+            fallbackDragon(x, y, flip, key !== "enemy" ? "#d6a44c" : "#a855f7", key !== "enemy" ? "#8b5a2b" : "#6d28d9", key !== "enemy" ? "#f3d179" : "#fca5a5");
             return;
           }
 
@@ -422,7 +469,7 @@
           ctx.ellipse(0, h * 0.42, w * 0.42, 23, 0, 0, Math.PI * 2);
           ctx.fill();
           ctx.drawImage(image, -w / 2, -h / 2, w, h);
-          if (!flip && state.defenceTimer > 0) {
+          if (key !== "enemy" && state.defenceTimer > 0) {
             ctx.strokeStyle = "#60a5facc";
             ctx.lineWidth = 7;
             ctx.beginPath();
@@ -460,12 +507,18 @@
         }
 
         function draw() {
+          if (state.phase === "select") {
+            drawDragonSelect();
+            return;
+          }
+
           ctx.save();
           if (state.shake > 0) ctx.translate(rand(-6, 6), rand(-5, 5));
 
           drawArena();
-          drawDragonImage("player", 320, 330, 255, 185, false);
-          drawDragonImage("enemy", 780, 330, 255, 185, true);
+          const renderData = core.getBattleRenderData(cfg, state);
+          drawDragonImage(renderData.player.assetKey, cfg.battleLayout.playerX, cfg.battleLayout.dragonY, cfg.battleLayout.dragonW, cfg.battleLayout.dragonH, renderData.player.flip);
+          drawDragonImage(renderData.enemy.assetKey, cfg.battleLayout.enemyX, cfg.battleLayout.dragonY, cfg.battleLayout.dragonW, cfg.battleLayout.dragonH, renderData.enemy.flip);
 
           state.particles.forEach((p) => {
             ctx.globalAlpha = clamp(p.life / p.max, 0, 1);
@@ -479,7 +532,10 @@
           rr(22, 20, 390, 105, 18, "#07101dcc", "#ffffff22");
           ctx.fillStyle = "#fff4d6";
           ctx.font = "bold 24px system-ui";
-          ctx.fillText("Player Dragon", 45, 54);
+          ctx.fillText(renderData.player.name, 45, 54);
+          ctx.fillStyle = "#cbd5e1";
+          ctx.font = "14px system-ui";
+          ctx.fillText(renderData.player.role, 45, 118);
           hpBar(45, 70, 330, 32, state.playerHp, "#34d399", "HP");
 
           rr(688, 20, 390, 105, 18, "#07101dcc", "#ffffff22");
@@ -528,21 +584,21 @@
           ctx.fillText(`Latest heard: ${state.lastHeard}   |   Accepted: ${state.accepted}`, 550, 513);
           ctx.textAlign = "left";
 
-          if (state.phase === "ready" || state.phase === "ended") {
+          if (state.phase === "ended") {
             ctx.fillStyle = "#020617b8";
             ctx.fillRect(0, 0, 1100, 620);
             rr(275, 175, 550, 250, 26, "#0f172af2", "#f6c453dd");
             ctx.textAlign = "center";
             ctx.font = "bold 44px system-ui";
             ctx.fillStyle = state.phase === "ended" ? state.result.includes("WIN") ? "#34d399" : state.result.includes("LOSE") ? "#ef4444" : "#f6c453" : "#fff4d6";
-            ctx.fillText(state.phase === "ended" ? state.result : "Voice Dragon Battle", 550, 250);
+            ctx.fillText(state.result, 550, 250);
             ctx.fillStyle = "#cbd5e1";
             ctx.font = "20px system-ui";
             ctx.fillText("Say: Attack, Defence, Ultimate", 550, 305);
             ctx.fillText("Or use canvas buttons / keys A, D, U", 550, 340);
             ctx.fillStyle = "#f6c453";
             ctx.font = "bold 21px system-ui";
-            ctx.fillText(state.phase === "ended" ? "Press R to play again" : "Use any command to start", 550, 385);
+            ctx.fillText("Press R to play again", 550, 385);
             ctx.textAlign = "left";
           }
 
@@ -614,6 +670,13 @@
           const button = buttons.find((item) => x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h);
 
           if (!button) return;
+          if (button.id.startsWith("select:")) {
+            state.selectedDragonId = button.id.slice("select:".length);
+            const dragon = core.getSelectedDragon(cfg, state);
+            state.message = `${dragon.name} selected.`;
+            state.note = `${dragon.role}: Attack x${dragon.modifiers.attackDamage}, Defence x${dragon.modifiers.defenceDuration}, Skill x${dragon.modifiers.skillCooldown}`;
+          }
+          if (button.id === "confirmDragon") confirmDragon();
           if (button.id === "mic") toggleMic();
           if (button.id === "attack") useCommand("attack", "canvas");
           if (button.id === "defence") useCommand("defence", "canvas");
@@ -623,6 +686,7 @@
 
         window.addEventListener("keydown", (e) => {
           const k = e.key.toLowerCase();
+          if (state.phase === "select" && k === "enter") confirmDragon();
           if (k === "a") useCommand("attack", "keyboard");
           if (k === "d") useCommand("defence", "keyboard");
           if (k === "u") useCommand("ultimate", "keyboard");
