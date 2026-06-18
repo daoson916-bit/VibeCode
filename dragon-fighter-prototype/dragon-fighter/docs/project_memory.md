@@ -15,3 +15,6 @@
 - Milestone 3 phase flow is `dragon-select` -> `countdown` -> `active-match` -> `result`.
 - Restart keeps the selected dragon and resets HP, timer, cooldowns, labels, latest feedback, AI timers, and result state.
 - AI uses the same command path as the player, acts every 2 seconds during active match, prefers Attack when available, and may react defensively after player Skill.
+- Dragon images are now manifest-driven local placeholder assets under `public/assets/dragons`.
+- Dragon Mania Legends Wiki images are temporary private prototype placeholders only; they must be replaced before public release or deployment unless explicit permission/licensing is confirmed.
+- Image loading is handled by an asset store with config-controlled logs, and Canvas shape dragons remain as fallback if a bitmap is missing or fails.

@@ -1,6 +1,6 @@
 import { createLayout } from '../ui/layout.js';
 
-export function createCanvasRenderer(config) {
+export function createCanvasRenderer(config, assetStore = null) {
   const layoutData = createLayout(config);
 
   function render(context, state) {
@@ -48,11 +48,11 @@ export function createCanvasRenderer(config) {
 
   function drawTeams(context, state) {
     drawTrainer(context, layoutData.player2Position, config.colors.player2Trainer, config.math.half);
-    drawDragon(context, layoutData.player2DragonPosition, config.layout.player2DragonWidth, config.layout.player2DragonHeight, state.players.player2.dragon.color, config.math.half);
+    drawDragonVisual(context, state.players.player2.dragon, layoutData.player2DragonPosition, config.layout.player2DragonWidth, config.layout.player2DragonHeight, config.math.half);
     drawStateLabel(context, layoutData.player2DragonPosition, state.players.player2.stateLabel);
 
     drawTrainer(context, layoutData.player1Position, config.colors.player1Trainer, config.math.one);
-    drawDragon(context, layoutData.player1DragonPosition, config.layout.player1DragonWidth, config.layout.player1DragonHeight, state.players.player1.dragon.color, config.math.one);
+    drawDragonVisual(context, state.players.player1.dragon, layoutData.player1DragonPosition, config.layout.player1DragonWidth, config.layout.player1DragonHeight, config.math.one);
     drawStateLabel(context, layoutData.player1DragonPosition, state.players.player1.stateLabel);
   }
 
@@ -181,20 +181,29 @@ export function createCanvasRenderer(config) {
 
   function drawDragonOptionCard(context, dragon, rect, isSelected) {
     drawPanel(context, rect, config.colors.dragonSelectCardFill, isSelected ? config.colors.dragonSelectSelectedBorder : config.colors.dragonSelectCardBorder);
-    drawDragon(
+    drawDragonVisual(
       context,
+      dragon,
       {
         x: rect.x + rect.width * config.math.half,
         y: rect.y + config.layout.dragonSelectVisualY
       },
       config.layout.dragonSelectDragonWidth,
       config.layout.dragonSelectDragonHeight,
-      dragon.color,
       config.math.one
     );
     drawText(context, dragon.name, rect.x + rect.width * config.math.half, rect.y + config.layout.dragonSelectNameY, config.fonts.uiFontSizeMedium, config.fonts.boldWeight, config.colors.colorTextPrimary, 'center');
     drawText(context, dragon.roleLabel, rect.x + rect.width * config.math.half, rect.y + config.layout.dragonSelectRoleY, config.fonts.uiFontSizeSmall, config.fonts.boldWeight, config.colors.colorTextSecondary, 'center');
-    drawText(context, dragon.flavorText, rect.x + rect.width * config.math.half, rect.y + config.layout.dragonSelectFlavorY, config.fonts.uiFontSizeSmall, config.fonts.normalWeight, config.colors.colorTextPrimary, 'center');
+    drawWrappedCenteredText(
+      context,
+      dragon.flavorText,
+      rect.x + rect.width * config.math.half,
+      rect.y + config.layout.dragonSelectFlavorY,
+      rect.width - config.layout.dragonSelectFlavorTextInset * config.math.two,
+      config.fonts.uiFontSizeSmall,
+      config.fonts.normalWeight,
+      config.colors.colorTextPrimary
+    );
     drawText(context, config.labels.futureBonusLabel, rect.x + rect.width * config.math.half, rect.y + config.layout.dragonSelectFutureY, config.fonts.uiFontSizeSmall, config.fonts.normalWeight, config.colors.colorTextSecondary, 'center');
   }
 
@@ -202,7 +211,7 @@ export function createCanvasRenderer(config) {
     const rect = layoutData.dragonSelect.confirmButtonRect;
     const fill = state.dragonSelect.selectedDragonId ? config.colors.dragonSelectConfirmFill : config.colors.dragonSelectConfirmBlockedFill;
     drawPanel(context, rect, fill, config.colors.colorPanelBorder);
-    drawText(context, config.labels.dragonSelectConfirm, rect.x + rect.width * config.math.half, rect.y + config.layout.commandTextY, config.fonts.uiFontSizeMedium, config.fonts.boldWeight, config.colors.colorTextPrimary, 'center');
+    drawText(context, config.labels.dragonSelectConfirm, rect.x + rect.width * config.math.half, rect.y + config.layout.dragonSelectConfirmTextY, config.fonts.uiFontSizeMedium, config.fonts.boldWeight, config.colors.colorTextPrimary, 'center');
   }
 
   function drawTrainer(context, position, color, scale) {
@@ -214,8 +223,25 @@ export function createCanvasRenderer(config) {
     context.fillRect(position.x - config.layout.trainerWidth * scale * config.math.half, position.y - config.layout.trainerHeight * scale + config.layout.headRadius * scale, config.layout.trainerWidth * scale, config.layout.trainerHeight * scale - config.layout.headRadius * scale);
   }
 
-  function drawDragon(context, position, width, height, color, scale) {
+  function drawDragonVisual(context, dragon, position, width, height, scale) {
+    const image = assetStore?.getDragonImage(dragon.imageAssetKey);
     drawShadow(context, position.x, position.y + height * config.math.half, width);
+
+    if (image) {
+      context.drawImage(
+        image,
+        position.x - width * config.math.half,
+        position.y - height * config.math.half,
+        width,
+        height
+      );
+      return;
+    }
+
+    drawDragonShape(context, position, width, height, dragon.color, scale);
+  }
+
+  function drawDragonShape(context, position, width, height, color, scale) {
     context.fillStyle = color;
     context.beginPath();
     context.ellipse(position.x, position.y, width * config.math.half, height * config.math.half, config.math.zero, config.math.zero, Math.PI * config.math.two);
@@ -266,6 +292,41 @@ export function createCanvasRenderer(config) {
     context.textAlign = align;
     context.textBaseline = 'alphabetic';
     context.fillText(text, x, y);
+  }
+
+  function drawWrappedCenteredText(context, text, x, y, maxWidth, size, weight, color) {
+    context.fillStyle = color;
+    context.font = `${weight} ${size}px ${config.fonts.uiFontFamily}`;
+    context.textAlign = 'center';
+    context.textBaseline = 'alphabetic';
+
+    wrapText(context, text, maxWidth).forEach((line, index) => {
+      context.fillText(line, x, y + index * config.layout.dragonSelectFlavorLineGap);
+    });
+  }
+
+  function wrapText(context, text, maxWidth) {
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+
+    words.forEach((word) => {
+      const candidateLine = currentLine ? `${currentLine} ${word}` : word;
+
+      if (context.measureText(candidateLine).width <= maxWidth || !currentLine) {
+        currentLine = candidateLine;
+        return;
+      }
+
+      lines.push(currentLine);
+      currentLine = word;
+    });
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+
+    return lines;
   }
 
   function formatCooldown(remaining) {

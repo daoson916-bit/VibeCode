@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { CONFIG } from '../src/config.js';
+import { createImageRecords, getLoadedDragonImage } from '../src/assets/assetLoader.js';
 import { confirmDragonSelection, createInitialGameState, selectDragon } from '../src/core/gameState.js';
 import { createLayout } from '../src/ui/layout.js';
 
@@ -14,6 +16,26 @@ test('config exposes exactly three selectable dragons', () => {
     CONFIG.dragons.options.map((dragon) => dragon.name),
     ['Ember', 'Tide', 'Volt']
   );
+});
+
+test('asset manifest contains the three selected dragon entries', () => {
+  const optionAssetKeys = CONFIG.dragons.options.map((dragon) => dragon.imageAssetKey);
+
+  assert.equal(new Set(optionAssetKeys).size, 3);
+  optionAssetKeys.forEach((assetKey) => {
+    assert.ok(CONFIG.assets.dragonImages[assetKey]);
+    assert.equal(CONFIG.assets.dragonImages[assetKey].licenseWarning, CONFIG.assets.privatePrototypeWarning);
+    assert.ok(existsSync(CONFIG.assets.dragonImages[assetKey].path));
+  });
+});
+
+test('each Dragon Select option references a valid asset key', () => {
+  CONFIG.dragons.options.forEach((dragon) => {
+    const asset = CONFIG.assets.dragonImages[dragon.imageAssetKey];
+
+    assert.ok(asset);
+    assert.equal(asset.key, dragon.imageAssetKey);
+  });
 });
 
 test('initial state starts at Dragon Select', () => {
@@ -51,7 +73,27 @@ test('selected dragon is used as Player 1 dragon data', () => {
 
   assert.equal(state.players.player1.dragon.name, 'Ember');
   assert.equal(state.players.player1.dragon.roleLabel, 'Attack Focus');
+  assert.equal(state.players.player1.dragon.imageAssetKey, 'fireDragonAdult');
   assert.equal(state.players.player1.dragon.futureModifiers.attackMultiplier, 1.15);
+});
+
+test('selected dragon asset key is used in arena rendering state', () => {
+  const selectedState = selectDragon(createInitialGameState(CONFIG), CONFIG, 'volt');
+  const state = confirmDragonSelection(selectedState, CONFIG);
+  const selectedConfigDragon = CONFIG.dragons.options.find((dragon) => dragon.id === 'volt');
+
+  assert.equal(state.players.player1.dragon.imageAssetKey, selectedConfigDragon.imageAssetKey);
+  assert.equal(CONFIG.assets.dragonImages[state.players.player1.dragon.imageAssetKey].key, 'mossBossDragonAdult');
+});
+
+test('renderer image helper falls back when image is missing or failed', () => {
+  const imageRecords = createImageRecords(CONFIG);
+  const assetKey = CONFIG.dragons.options[0].imageAssetKey;
+
+  assert.equal(getLoadedDragonImage({ imageRecords }, CONFIG, assetKey), null);
+
+  imageRecords[assetKey].status = CONFIG.assets.imageStatusError;
+  assert.equal(getLoadedDragonImage({ imageRecords }, CONFIG, assetKey), null);
 });
 
 test('initial arena state labels are Idle', () => {

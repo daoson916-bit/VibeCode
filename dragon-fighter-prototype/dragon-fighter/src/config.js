@@ -1,3 +1,5 @@
+import { DRAGON_IMAGE_MANIFEST, TEMPORARY_PRIVATE_PROTOTYPE_ASSET_WARNING } from './assets/assetManifest.js';
+
 // Central Dragon Fighter tuning file.
 // Designers should adjust playtest values here instead of editing render, state, loop, or input code.
 
@@ -6,7 +8,7 @@ export const CONFIG = {
     // Folder replaced by the build script. Recommended: short folder name such as dist.
     buildOutputFolder: 'dist',
     // Source folders copied into the build output. Recommended: include only browser runtime folders.
-    buildSourceFolders: ['src'],
+    buildSourceFolders: ['src', 'public'],
     // Dev server settings used for local prototype review. Recommended port range: 3000-9999.
     devServer: {
       port: 5173,
@@ -43,7 +45,9 @@ export const CONFIG = {
     // Enables match phase and result logs. Recommended: true during Milestone 3 validation.
     matchEvents: true,
     // Enables AI decision logs. Recommended: true while tuning opponent behavior.
-    aiEvents: true
+    aiEvents: true,
+    // Enables image loading/error logs. Recommended: true while using temporary prototype assets.
+    assetEvents: true
   },
   math: {
     // Zero value used for empty timers and origin math. Recommended: keep at 0.
@@ -74,6 +78,26 @@ export const CONFIG = {
     cssWidth: '100vw',
     // Canvas resize CSS height. Recommended: 100vh.
     cssHeight: '100vh'
+  },
+  assets: {
+    // Local asset root for private prototype dragon images. Recommended: public/assets/dragons.
+    dragonImageRoot: 'public/assets/dragons',
+    // Manifest of local dragon image placeholders. Recommended: replace entries when licensed art is available.
+    dragonImages: DRAGON_IMAGE_MANIFEST,
+    // Warning shown in metadata and logs so placeholders are not mistaken for production assets.
+    privatePrototypeWarning: TEMPORARY_PRIVATE_PROTOTYPE_ASSET_WARNING,
+    // Initial image state before browser loading starts. Recommended: pending.
+    imageStatusPending: 'pending',
+    // Image state while the browser is fetching the local file. Recommended: loading.
+    imageStatusLoading: 'loading',
+    // Image state that allows the renderer to draw the bitmap. Recommended: loaded.
+    imageStatusLoaded: 'loaded',
+    // Image state that tells the renderer to use the Canvas shape fallback. Recommended: error.
+    imageStatusError: 'error',
+    // Browser image event for successful local image loads. Recommended: load.
+    imageLoadEvent: 'load',
+    // Browser image event for local image load failures. Recommended: error.
+    imageErrorEvent: 'error'
   },
   match: {
     // Length of a future active match in seconds. Prototype value: 60, recommended range: 30-90.
@@ -448,6 +472,10 @@ export const CONFIG = {
     dragonSelectRoleY: 242,
     // Dragon Select flavor first-line baseline offset in pixels. Recommended range: 260-300.
     dragonSelectFlavorY: 282,
+    // Dragon Select flavor text inset from card edges in pixels. Recommended range: 20-44.
+    dragonSelectFlavorTextInset: 28,
+    // Dragon Select wrapped flavor line gap in pixels. Recommended range: 16-28.
+    dragonSelectFlavorLineGap: 22,
     // Dragon Select future bonus baseline offset in pixels. Recommended range: 315-345.
     dragonSelectFutureY: 324,
     // Dragon Select confirm button x position in pixels. Recommended range: 520-620.
@@ -458,6 +486,8 @@ export const CONFIG = {
     dragonSelectConfirmWidth: 180,
     // Dragon Select confirm button height in pixels. Recommended range: 46-68.
     dragonSelectConfirmHeight: 56,
+    // Dragon Select confirm text baseline offset in pixels. Recommended range: 30-44.
+    dragonSelectConfirmTextY: 38,
     // Dragon Select feedback y position in pixels. Recommended range: 560-610.
     dragonSelectFeedbackY: 574,
     // Canvas combat button width in pixels. Recommended range: 96-150.
@@ -495,6 +525,7 @@ export const CONFIG = {
       roleLabel: 'Balanced Rival',
       flavorText: 'A steady opponent waiting across the arena.',
       color: '#ff806d',
+      imageAssetKey: 'mossBossDragonEnemy',
       futureModifiers: {
         attackMultiplier: 1,
         defenceMultiplier: 1,
@@ -510,6 +541,7 @@ export const CONFIG = {
         roleLabel: 'Attack Focus',
         flavorText: 'Future bonus: stronger Attack, weaker Defence',
         color: '#ff7a45',
+        imageAssetKey: 'fireDragonAdult',
         futureModifiers: {
           attackMultiplier: 1.15,
           defenceMultiplier: 0.9,
@@ -523,6 +555,7 @@ export const CONFIG = {
         roleLabel: 'Defence Focus',
         flavorText: 'Future bonus: stronger Defence, weaker Attack',
         color: '#4db8ff',
+        imageAssetKey: 'holyPaladinDragonAdult',
         futureModifiers: {
           attackMultiplier: 0.9,
           defenceMultiplier: 1.15,
@@ -536,6 +569,7 @@ export const CONFIG = {
         roleLabel: 'Skill Focus',
         flavorText: 'Future bonus: faster Skill, weaker Block',
         color: '#ffd84d',
+        imageAssetKey: 'mossBossDragonAdult',
         futureModifiers: {
           attackMultiplier: 1,
           defenceMultiplier: 1,
