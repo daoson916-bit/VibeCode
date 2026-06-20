@@ -58,6 +58,33 @@
           projectileTravelTime: 0.65,
           enemyMinWait: 1.3,
           enemyMaxWait: 2.4,
+          progression: {
+            enemyHpPerStage: 18,
+            enemyDamagePerStage: 2,
+            enemyMinWaitStep: 0.04,
+            enemyMaxWaitStep: 0.08,
+            enemyMinWaitFloor: 1.1,
+            enemyMaxWaitFloor: 1.55,
+            vitalityHpPerRank: 12,
+            powerPerRank: 0.1,
+            guardDurationPerRank: 0.2,
+            guardBlockCdPerRank: 0.25,
+            blockCdFloor: 5,
+            focusPerRank: 0.05,
+            focusMultiplierFloor: 0.65,
+            enemyRoster: [
+              { name: "Moss Warden", role: "Forest Rival", assetKey: "enemy", elementKey: "enemy", color: "#a855f7" },
+              { name: "Ember Tyrant", role: "Flame Rival", assetKey: "ember", elementKey: "ember", color: "#fb923c" },
+              { name: "Tide Sentinel", role: "Tide Rival", assetKey: "tide", elementKey: "tide", color: "#60a5fa" },
+              { name: "Ancient Moss", role: "Elder Rival", assetKey: "moss", elementKey: "moss", color: "#34d399" }
+            ],
+            upgrades: {
+              power: { name: "Power", color: "#fb923c", maxRank: 8, description: "+10% Attack and Ultimate damage" },
+              vitality: { name: "Vitality", color: "#34d399", maxRank: 8, description: "+12 maximum HP" },
+              guard: { name: "Guard", color: "#60a5fa", maxRank: 8, description: "+0.2s Defence; -0.25s Block cooldown" },
+              focus: { name: "Focus", color: "#a78bfa", maxRank: 7, description: "-5% Attack and Ultimate cooldowns" }
+            }
+          },
           assets: {
             background: "./dragon-fighter-prototype/dragon-fighter/public/assets/backgrounds/arena.png",
             enemy: "./dragon-fighter-prototype/dragon-fighter/public/assets/dragons/moss-boss-dragon-enemy.png",
@@ -125,6 +152,10 @@
             imageH: 140,
             confirm: { x: 415, y: 510, w: 270, h: 48 }
           },
+          upgradeLayout: {
+            textAlign: "center",
+            cardTextInset: 17
+          },
           battleLayout: {
             playerDragon: { x: 360, y: 390, w: 358, h: 253, labelY: 226, hitX: 385, hitY: 370 },
             enemyDragon: { x: 766, y: 312, w: 170, h: 124, labelY: 204, hitX: 750, hitY: 300 },
@@ -162,6 +193,10 @@
             message: "Choose your dragon.",
             note: "Select a dragon, then confirm to battle.",
             result: "",
+            stage: 1,
+            victories: 0,
+            battleOutcome: null,
+            upgrades: { power: 0, vitality: 0, guard: 0, focus: 0 },
             cd: { attack: 0, defence: 0, block: 0, ultimate: 0 },
             defenceTimer: 0,
             blockTimer: 0,
@@ -174,29 +209,74 @@
 
         function modifiedAttackDamage(config, currentState) {
           const dragon = getSelectedDragon(config, currentState);
-          return Math.round(config.baseAttackDamage * dragon.modifiers.attackDamage);
+          const power = 1 + currentState.upgrades.power * config.progression.powerPerRank;
+          return Math.round(config.baseAttackDamage * dragon.modifiers.attackDamage * power);
         }
 
         function modifiedDefenceDuration(config, currentState) {
           const dragon = getSelectedDragon(config, currentState);
-          return config.baseDefenceTime * dragon.modifiers.defenceDuration;
+          const upgradedDuration = config.baseDefenceTime + currentState.upgrades.guard * config.progression.guardDurationPerRank;
+          return upgradedDuration * dragon.modifiers.defenceDuration;
         }
 
         function modifiedSkillCooldown(config, currentState) {
           const dragon = getSelectedDragon(config, currentState);
-          return config.ultimateCd * dragon.modifiers.skillCooldown;
+          return config.ultimateCd * dragon.modifiers.skillCooldown * getFocusMultiplier(config, currentState);
+        }
+
+        function getFocusMultiplier(config, currentState) {
+          return Math.max(config.progression.focusMultiplierFloor, 1 - currentState.upgrades.focus * config.progression.focusPerRank);
+        }
+
+        function modifiedUltimateDamage(config, currentState) {
+          const power = 1 + currentState.upgrades.power * config.progression.powerPerRank;
+          return Math.round(config.ultimateDamage * power);
+        }
+
+        function getPlayerMaxHp(config, currentState) {
+          return config.maxHp + currentState.upgrades.vitality * config.progression.vitalityHpPerRank;
+        }
+
+        function getEnemyStats(config, currentState) {
+          const stageIndex = Math.max(0, currentState.stage - 1);
+          const roster = config.progression.enemyRoster;
+          const template = roster[stageIndex % roster.length];
+          const cycle = Math.floor(stageIndex / roster.length);
+          return {
+            ...template,
+            name: cycle > 0 ? `${template.name} +${cycle}` : template.name,
+            maxHp: config.maxHp + stageIndex * config.progression.enemyHpPerStage,
+            damage: config.enemyDamage + stageIndex * config.progression.enemyDamagePerStage,
+            minWait: Math.max(config.progression.enemyMinWaitFloor, config.enemyMinWait - stageIndex * config.progression.enemyMinWaitStep),
+            maxWait: Math.max(config.progression.enemyMaxWaitFloor, config.enemyMaxWait - stageIndex * config.progression.enemyMaxWaitStep),
+            scale: Math.min(1.28, 1 + stageIndex * 0.025)
+          };
+        }
+
+        function getUpgrade(config, upgradeId) {
+          return config.progression.upgrades[upgradeId] || null;
+        }
+
+        function canApplyUpgrade(config, currentState, upgradeId) {
+          const upgrade = getUpgrade(config, upgradeId);
+          return Boolean(upgrade && currentState.upgrades[upgradeId] < upgrade.maxRank);
+        }
+
+        function allUpgradesMaxed(config, currentState) {
+          return Object.keys(config.progression.upgrades).every((upgradeId) => !canApplyUpgrade(config, currentState, upgradeId));
         }
 
         function getCommandCooldown(config, currentState, command) {
-          if (command === "attack") return config.attackCd;
+          if (command === "attack") return config.attackCd * getFocusMultiplier(config, currentState);
           if (command === "defence") return config.defenceCd;
-          if (command === "block") return config.blockCd;
+          if (command === "block") return Math.max(config.progression.blockCdFloor, config.blockCd - currentState.upgrades.guard * config.progression.guardBlockCdPerRank);
           if (command === "ultimate") return modifiedSkillCooldown(config, currentState);
           return 0;
         }
 
         function getBattleRenderData(config, currentState) {
           const selected = getSelectedDragon(config, currentState);
+          const enemy = getEnemyStats(config, currentState);
           return {
             player: {
               assetKey: selected.id,
@@ -206,9 +286,10 @@
               direction: config.facing.player.direction
             },
             enemy: {
-              assetKey: "enemy",
-              name: "Enemy Dragon",
-              role: "Rival",
+              assetKey: enemy.assetKey,
+              elementKey: enemy.elementKey,
+              name: enemy.name,
+              role: enemy.role,
               flip: config.facing.enemy.flip,
               direction: config.facing.enemy.direction
             }
@@ -219,6 +300,12 @@
           getSelectedDragon,
           modifiedAttackDamage,
           modifiedDefenceDuration,
+          modifiedUltimateDamage,
+          getPlayerMaxHp,
+          getEnemyStats,
+          getUpgrade,
+          canApplyUpgrade,
+          allUpgradesMaxed,
           getCommandCooldown,
           getBattleRenderData
         };
@@ -250,25 +337,28 @@
         cfg.dragons.forEach((dragon) => loadImage(dragon.id, dragon.asset));
 
         function reset() {
+          const playerMaxHp = core.getPlayerMaxHp(cfg, state);
+          const enemy = core.getEnemyStats(cfg, state);
           state.phase = "playing";
           state.time = cfg.matchTime;
-          state.playerHp = cfg.maxHp;
-          state.enemyHp = cfg.maxHp;
+          state.playerHp = playerMaxHp;
+          state.enemyHp = enemy.maxHp;
           state.lastHeard = "-";
           state.accepted = "-";
           state.enemyAccepted = "-";
           state.playerState = "Ready";
           state.enemyState = "Ready";
-          state.message = "Battle started. Say Attack, Defence, Block, Ultimate, or Skill.";
+          state.message = `Stage ${state.stage}: ${enemy.name} approaches.`;
           state.note = "Use canvas buttons, keyboard, or voice commands.";
           state.result = "";
+          state.battleOutcome = null;
           state.cd.attack = 0;
           state.cd.defence = 0;
           state.cd.block = 0;
           state.cd.ultimate = 0;
           state.defenceTimer = 0;
           state.blockTimer = 0;
-          state.enemyTimer = rand(cfg.enemyMinWait, cfg.enemyMaxWait);
+          state.enemyTimer = rand(enemy.minWait, enemy.maxWait);
           state.shake = 0;
           state.particles = [];
           state.pendingAttacks = [];
@@ -278,6 +368,10 @@
         function chooseDragonAgain() {
           state.phase = "select";
           state.selectedDragonId = null;
+          state.stage = 1;
+          state.victories = 0;
+          state.battleOutcome = null;
+          state.upgrades = { power: 0, vitality: 0, guard: 0, focus: 0 };
           state.time = cfg.matchTime;
           state.playerHp = cfg.maxHp;
           state.enemyHp = cfg.maxHp;
@@ -327,14 +421,9 @@
             state.note = "Pick a dragon first.";
             return;
           }
-          state.phase = "playing";
-          state.message = `${dragon.name} enters battle.`;
-          state.note = "Use canvas buttons, keyboard, or voice commands.";
+          reset();
+          state.message = `${dragon.name} enters Stage ${state.stage}.`;
           state.playerState = dragon.role;
-          state.enemyState = "Ready";
-          state.accepted = "-";
-          state.enemyAccepted = "-";
-          state.pendingAttacks = [];
           log("dragon_confirmed", { dragonId: dragon.id, role: dragon.role });
         }
 
@@ -377,11 +466,11 @@
           const damage = attack.target === "player" && defended ? Math.round(attack.damage * cfg.defenceReduce) : attack.damage;
 
           if (attack.target === "player") {
-            state.playerHp = clamp(state.playerHp - damage, 0, cfg.maxHp);
+            state.playerHp = clamp(state.playerHp - damage, 0, core.getPlayerMaxHp(cfg, state));
             state.playerState = defended ? "Defended" : "Hit";
             state.message = defended ? `Defence reduced damage. You -${damage} HP` : `Enemy hit. You -${damage} HP`;
           } else {
-            state.enemyHp = clamp(state.enemyHp - damage, 0, cfg.maxHp);
+            state.enemyHp = clamp(state.enemyHp - damage, 0, core.getEnemyStats(cfg, state).maxHp);
             state.enemyState = attack.command === "ultimate" ? "Crushed" : "Hit";
             state.message = attack.command === "ultimate" ? `Ultimate hit. Enemy -${damage} HP` : `Attack hit. Enemy -${damage} HP`;
           }
@@ -435,7 +524,7 @@
             state.playerState = "Ultimate Cast";
             state.enemyState = "Danger";
             state.message = "Ultimate charging. Heavy projectile incoming.";
-            scheduleAttack("player", "enemy", "ultimate", cfg.ultimateDamage, "#a78bfa", 32);
+            scheduleAttack("player", "enemy", "ultimate", core.modifiedUltimateDamage(cfg, state), "#a78bfa", 32);
           }
         }
 
@@ -472,13 +561,14 @@
 
         function enemyAttack() {
           if (state.phase !== "playing") return;
+          const enemy = core.getEnemyStats(cfg, state);
 
           state.enemyState = "Attack Cast";
           state.enemyAccepted = "ATTACK";
           state.playerState = state.blockTimer > 0 ? "Block" : state.playerState;
           state.message = "Enemy attack charging. Block before impact.";
-          scheduleAttack("enemy", "player", "attack", cfg.enemyDamage, "#ef4444", 18);
-          state.enemyTimer = rand(cfg.enemyMinWait, cfg.enemyMaxWait);
+          scheduleAttack("enemy", "player", "attack", enemy.damage, enemy.color, 18 + Math.min(8, state.stage - 1));
+          state.enemyTimer = rand(enemy.minWait, enemy.maxWait);
           log("enemy_attack_cast");
         }
 
@@ -494,11 +584,42 @@
         }
 
         function finish(result) {
-          state.phase = "ended";
+          if (state.phase !== "playing") return;
+          const won = result.includes("WIN");
+          state.phase = "upgrade";
           state.result = result;
+          state.battleOutcome = { result, won, stage: state.stage };
+          if (won) state.victories += 1;
           state.pendingAttacks = [];
-          state.message = "Choose Dragon Again to pick a new dragon.";
+          state.message = won ? `Stage ${state.stage} cleared. Choose an upgrade.` : `Stage ${state.stage} holds. Upgrade and retry.`;
+          state.note = "Choose one upgrade for your dragon.";
           log("finish", { result, playerHp: state.playerHp, enemyHp: state.enemyHp });
+        }
+
+        function beginBattleAfterReward(rewardMessage) {
+          const outcome = state.battleOutcome;
+          if (!outcome) return;
+          if (outcome.won) state.stage += 1;
+          const nextMessage = outcome.won
+            ? `Stage ${state.stage} begins. A stronger dragon appears.`
+            : `Retrying Stage ${state.stage}. Adapt and overcome.`;
+          reset();
+          state.message = nextMessage;
+          state.note = rewardMessage;
+        }
+
+        function applyUpgrade(upgradeId) {
+          if (state.phase !== "upgrade" || !core.canApplyUpgrade(cfg, state, upgradeId)) return;
+          const upgrade = core.getUpgrade(cfg, upgradeId);
+          state.upgrades[upgradeId] += 1;
+          const rank = state.upgrades[upgradeId];
+          log("upgrade_applied", { upgradeId, rank, stage: state.stage });
+          beginBattleAfterReward(`${upgrade.name} upgraded to rank ${rank}.`);
+        }
+
+        function continueWithMaxUpgrades() {
+          if (state.phase !== "upgrade" || !core.allUpgradesMaxed(cfg, state)) return;
+          beginBattleAfterReward("All upgrades are maxed.");
         }
 
         function hit(x, y, color, count) {
@@ -570,6 +691,7 @@
             if (state.phase === "playing") resolveAttack(attack);
           });
 
+          if (state.phase !== "playing") return;
           if (state.enemyTimer <= 0) enemyAttack();
           if (state.time <= 0) checkEnd();
         }
@@ -588,24 +710,25 @@
           }
         }
 
-        function hpBar(x, y, w, h, value, color, label) {
+        function hpBar(x, y, w, h, value, maxValue, color, label) {
           rr(x, y, w, h, 10, "#0008", "#ffffff33");
-          rr(x + 3, y + 3, (w - 6) * clamp(value / cfg.maxHp, 0, 1), h - 6, 8, color, null);
+          rr(x + 3, y + 3, (w - 6) * clamp(value / maxValue, 0, 1), h - 6, 8, color, null);
           ctx.textAlign = "center";
           ctx.fillStyle = "#fff4d6";
           ctx.font = "bold 16px system-ui";
-          ctx.fillText(`${label}: ${Math.ceil(value)}/${cfg.maxHp}`, x + w / 2, y + h - 8);
+          ctx.fillText(`${label}: ${Math.ceil(value)}/${maxValue}`, x + w / 2, y + h - 8);
           ctx.textAlign = "left";
         }
 
         function canvasButton(id, x, y, w, h, label, fill, border) {
           buttons.push({ id, x, y, w, h });
+          ctx.save();
           rr(x, y, w, h, 18, fill, border);
           ctx.textAlign = "center";
           ctx.fillStyle = "#fff4d6";
           ctx.font = "bold 15px system-ui";
           ctx.fillText(label, x + w / 2, y + 27);
-          ctx.textAlign = "left";
+          ctx.restore();
         }
 
         function drawControls() {
@@ -683,6 +806,70 @@
           const selectedDragon = core.getSelectedDragon(cfg, state);
           state.note = selectedDragon ? `${selectedDragon.name}: ${selectedDragon.role}` : state.note;
           drawControls();
+          ctx.textAlign = "left";
+        }
+
+        function drawUpgradeScreen() {
+          buttons.length = 0;
+          drawArena();
+          ctx.fillStyle = "#020617d9";
+          ctx.fillRect(0, 0, 1100, 620);
+
+          const outcome = state.battleOutcome;
+          const won = Boolean(outcome?.won);
+          const upgradeLayout = cfg.upgradeLayout;
+          ctx.textAlign = upgradeLayout.textAlign;
+          ctx.fillStyle = won ? "#34d399" : state.result === "DRAW" ? "#f6c453" : "#fca5a5";
+          ctx.font = "bold 38px system-ui";
+          ctx.fillText(state.result || "BATTLE COMPLETE", 550, 58);
+          ctx.fillStyle = "#fff4d6";
+          ctx.font = "bold 23px system-ui";
+          ctx.fillText(won ? `Stage ${state.stage} cleared — prepare for Stage ${state.stage + 1}` : `Stage ${state.stage} will be retried`, 550, 94);
+          ctx.fillStyle = "#cbd5e1";
+          ctx.font = "16px system-ui";
+          ctx.fillText("Choose one upgrade. The next battle begins immediately.", 550, 124);
+
+          const upgradeIds = Object.keys(cfg.progression.upgrades);
+          upgradeIds.forEach((upgradeId, index) => {
+            const upgrade = core.getUpgrade(cfg, upgradeId);
+            const rank = state.upgrades[upgradeId];
+            const available = core.canApplyUpgrade(cfg, state, upgradeId);
+            const x = 35 + index * 265;
+            const y = 158;
+            const w = 235;
+            const h = 330;
+            ctx.textAlign = upgradeLayout.textAlign;
+            rr(x, y, w, h, 22, available ? "#0f172af2" : "#111827dd", available ? upgrade.color : "#64748b");
+            ctx.fillStyle = upgrade.color;
+            ctx.font = "bold 25px system-ui";
+            ctx.fillText(upgrade.name, x + w / 2, y + 48);
+            ctx.fillStyle = "#fff4d6";
+            ctx.font = "bold 17px system-ui";
+            ctx.fillText(`Rank ${rank}/${upgrade.maxRank}`, x + w / 2, y + 80);
+            ctx.fillStyle = "#cbd5e1";
+            ctx.font = "15px system-ui";
+            wrapText(upgrade.description, x + w / 2, y + 125, w - upgradeLayout.cardTextInset * 2, 22);
+
+            const preview = upgradeId === "power"
+              ? `Attack ${core.modifiedAttackDamage(cfg, state)} → ${Math.round(core.modifiedAttackDamage(cfg, state) * (1 + cfg.progression.powerPerRank / (1 + rank * cfg.progression.powerPerRank)))}`
+              : upgradeId === "vitality"
+                ? `Max HP ${core.getPlayerMaxHp(cfg, state)} → ${core.getPlayerMaxHp(cfg, state) + cfg.progression.vitalityHpPerRank}`
+                : upgradeId === "guard"
+                  ? `Defence ${core.modifiedDefenceDuration(cfg, state).toFixed(1)}s`
+                  : `Attack CD ${core.getCommandCooldown(cfg, state, "attack").toFixed(2)}s`;
+            ctx.fillStyle = "#93c5fd";
+            ctx.font = "bold 14px system-ui";
+            ctx.fillText(available ? preview : "Maximum rank reached", x + w / 2, y + 230);
+            canvasButton(`upgrade:${upgradeId}`, x + 26, y + 265, w - 52, 46, available ? `Choose ${index + 1}` : "MAX", available ? "#1e293bdd" : "#334155aa", available ? upgrade.color : "#64748b");
+          });
+
+          canvasButton("chooseDragonAgain", 55, 535, 190, 44, "Change Dragon", "#102a4cdd", "#87d5ff");
+          if (core.allUpgradesMaxed(cfg, state)) {
+            canvasButton("continueMax", 420, 525, 260, 54, "Continue — All Maxed", "#164e35dd", "#34d399");
+          }
+          ctx.fillStyle = "#94a3b8";
+          ctx.font = "14px system-ui";
+          ctx.fillText("Keys 1–4 choose an upgrade", 550, 607);
           ctx.textAlign = "left";
         }
 
@@ -804,19 +991,20 @@
         function drawPanelCooldowns(layout, side) {
           const y = layout.y + 101;
           if (side === "player") {
-            miniCooldown(layout.x + 17, y, "ATK", state.cd.attack, cfg.attackCd, "#fb923c", 82);
+            miniCooldown(layout.x + 17, y, "ATK", state.cd.attack, core.getCommandCooldown(cfg, state, "attack"), "#fb923c", 82);
             miniCooldown(layout.x + 105, y, "DEF", state.cd.defence, cfg.defenceCd, "#60a5fa", 82);
-            miniCooldown(layout.x + 193, y, "BLK", state.cd.block, cfg.blockCd, "#f6c453", 82);
-            miniCooldown(layout.x + 281, y, "ULT", state.cd.ultimate, cfg.ultimateCd, "#a78bfa", 82);
+            miniCooldown(layout.x + 193, y, "BLK", state.cd.block, core.getCommandCooldown(cfg, state, "block"), "#f6c453", 82);
+            miniCooldown(layout.x + 281, y, "ULT", state.cd.ultimate, core.getCommandCooldown(cfg, state, "ultimate"), "#a78bfa", 82);
             return;
           }
 
-          miniCooldown(layout.x + 22, y, "ATK", state.enemyTimer, cfg.enemyMaxWait, "#fb923c");
+          const enemy = core.getEnemyStats(cfg, state);
+          miniCooldown(layout.x + 22, y, "ATK", state.enemyTimer, enemy.maxWait, enemy.color);
           miniCooldown(layout.x + 121, y, "DEF", 0, cfg.defenceCd, "#60a5fa");
           miniCooldown(layout.x + 220, y, "ULT", 0, cfg.ultimateCd, "#a78bfa");
         }
 
-        function drawStatusPanel(layout, title, subtitle, hp, color, elementKey) {
+        function drawStatusPanel(layout, title, subtitle, hp, maxHp, color, elementKey) {
           rr(layout.x, layout.y, layout.w, layout.h, 18, "#07101dcc", "#ffffff22");
           drawElementIcon(layout.x + 26, layout.y + 34, elementKey);
           ctx.fillStyle = "#fff4d6";
@@ -825,7 +1013,7 @@
           ctx.fillStyle = "#cbd5e1";
           ctx.font = "14px system-ui";
           ctx.fillText(subtitle, layout.x + 23, layout.y + 96);
-          hpBar(layout.x + 23, layout.y + 50, layout.w - 60, 32, hp, color, "HP");
+          hpBar(layout.x + 23, layout.y + 50, layout.w - 60, 32, hp, maxHp, color, "HP");
         }
 
         function drawStateLabel(text, x, y) {
@@ -907,6 +1095,25 @@
           ctx.font = "bold 15px system-ui";
           ctx.fillStyle = color;
           ctx.fillText(`${blockActive ? "BLOCK" : "DEFENCE"} ${remaining.toFixed(1)}s`, layout.x, layout.y + layout.h * 0.58);
+          ctx.restore();
+        }
+
+        function drawEnemyTierAura(layout, enemy) {
+          const now = performance.now() / 1000;
+          const radius = Math.max(layout.w, layout.h) * 0.42 * enemy.scale;
+          ctx.save();
+          ctx.translate(layout.x, layout.y);
+          ctx.globalAlpha = 0.28 + Math.sin(now * 4 + state.stage) * 0.08;
+          ctx.strokeStyle = enemy.color;
+          ctx.lineWidth = 5 + Math.min(7, state.stage * 0.6);
+          ctx.shadowColor = enemy.color;
+          ctx.shadowBlur = 24;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, radius, radius * 0.62, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = 0.12;
+          ctx.fillStyle = enemy.color;
+          ctx.fill();
           ctx.restore();
         }
 
@@ -1005,14 +1212,21 @@
             drawDragonSelect();
             return;
           }
+          if (state.phase === "upgrade") {
+            drawUpgradeScreen();
+            return;
+          }
 
           ctx.save();
           if (state.shake > 0) ctx.translate(rand(-6, 6), rand(-5, 5));
 
           drawArena();
           const renderData = core.getBattleRenderData(cfg, state);
+          const enemyStats = core.getEnemyStats(cfg, state);
+          const playerMaxHp = core.getPlayerMaxHp(cfg, state);
           const layout = cfg.battleLayout;
-          drawDragonImage(renderData.enemy.assetKey, layout.enemyDragon.x, layout.enemyDragon.y, layout.enemyDragon.w, layout.enemyDragon.h, renderData.enemy.flip);
+          drawEnemyTierAura(layout.enemyDragon, enemyStats);
+          drawDragonImage(renderData.enemy.assetKey, layout.enemyDragon.x, layout.enemyDragon.y, layout.enemyDragon.w * enemyStats.scale, layout.enemyDragon.h * enemyStats.scale, renderData.enemy.flip);
           drawDragonImage(renderData.player.assetKey, layout.playerDragon.x, layout.playerDragon.y, layout.playerDragon.w, layout.playerDragon.h, renderData.player.flip);
           drawGuardEffect(layout.playerDragon);
           state.pendingAttacks.forEach(drawPendingAttack);
@@ -1026,8 +1240,9 @@
             ctx.globalAlpha = 1;
           });
 
-          drawStatusPanel(layout.playerHud, `P1 ${renderData.player.name}`, renderData.player.role, state.playerHp, "#34d399", state.selectedDragonId);
-          drawStatusPanel(layout.enemyHud, "P2 Enemy Dragon", "AI Rival", state.enemyHp, "#ef4444", "enemy");
+          const upgradeRanks = Object.values(state.upgrades).reduce((sum, rank) => sum + rank, 0);
+          drawStatusPanel(layout.playerHud, `P1 ${renderData.player.name}`, `${renderData.player.role} • Upgrades ${upgradeRanks}`, state.playerHp, playerMaxHp, "#34d399", state.selectedDragonId);
+          drawStatusPanel(layout.enemyHud, `P2 ${renderData.enemy.name}`, `${renderData.enemy.role} • DMG ${enemyStats.damage}`, state.enemyHp, enemyStats.maxHp, enemyStats.color, renderData.enemy.elementKey);
           drawPanelCooldowns(layout.playerHud, "player");
           drawPanelCooldowns(layout.enemyHud, "enemy");
 
@@ -1035,7 +1250,7 @@
           ctx.textAlign = "center";
           ctx.fillStyle = "#f6c453";
           ctx.font = "bold 17px system-ui";
-          ctx.fillText("TIME", layout.timer.x + layout.timer.w / 2, layout.timer.y + 27);
+          ctx.fillText(`STAGE ${state.stage}`, layout.timer.x + layout.timer.w / 2, layout.timer.y + 27);
           ctx.font = "bold 32px system-ui";
           ctx.fillText(String(Math.ceil(state.time)), layout.timer.x + layout.timer.w / 2, layout.timer.y + 62);
           ctx.textAlign = "left";
@@ -1171,6 +1386,14 @@
           const button = buttons.find((item) => x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h);
 
           if (!button) return;
+          if (button.id.startsWith("upgrade:")) {
+            applyUpgrade(button.id.slice("upgrade:".length));
+            return;
+          }
+          if (button.id === "continueMax") {
+            continueWithMaxUpgrades();
+            return;
+          }
           if (button.id.startsWith("select:")) {
             state.selectedDragonId = button.id.slice("select:".length);
             const dragon = core.getSelectedDragon(cfg, state);
@@ -1190,11 +1413,19 @@
         window.addEventListener("keydown", (e) => {
           const k = e.key.toLowerCase();
           if (state.phase === "select" && k === "enter") confirmDragon();
+          if (state.phase === "upgrade" && ["1", "2", "3", "4"].includes(k)) {
+            applyUpgrade(Object.keys(cfg.progression.upgrades)[Number(k) - 1]);
+            return;
+          }
+          if (state.phase === "upgrade" && k === "enter") {
+            continueWithMaxUpgrades();
+            return;
+          }
           if (k === "a") useCommand("attack", "keyboard");
           if (k === "d") useCommand("defence", "keyboard");
           if (k === "b") useCommand("block", "keyboard");
           if (k === "u") useCommand("ultimate", "keyboard");
-          if (k === "r") reset();
+          if (k === "r" && state.phase === "playing") reset();
         });
 
         setupSpeech();
