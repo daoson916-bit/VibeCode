@@ -64,6 +64,32 @@
             scanIntervalMs: 1000,
             duplicateWindowMs: 650
           },
+          flow: {
+            initialPhase: "menu",
+            labels: {
+              title: "Dragon Fighter",
+              subtitle: "Choose your dragon. Master the arena.",
+              playNow: "Play Now",
+              retryMatch: "Retry Match",
+              backToMainMenu: "Back to Main Menu",
+              continue: "Continue"
+            },
+            menu: {
+              titleY: 230,
+              subtitleY: 278,
+              playButton: { x: 565, y: 340, w: 270, h: 58 }
+            },
+            result: {
+              panel: { x: 425, y: 175, w: 550, h: 250 },
+              continueButton: { x: 565, y: 350, w: 270, h: 52 },
+              retryButton: { x: 435, y: 350, w: 250, h: 52 },
+              menuButton: { x: 715, y: 350, w: 250, h: 52 }
+            }
+          },
+          combatStart: {
+            cooldowns: { attack: 0, defence: 0, block: 0 },
+            ultimateOnFullCooldown: true
+          },
           progression: {
             enemyHpPerStage: 18,
             enemyDamagePerStage: 2,
@@ -216,7 +242,7 @@
 
         function createInitialState(config) {
           return {
-            phase: "select",
+            phase: config.flow.initialPhase,
             selectedDragonId: null,
             time: config.matchTime,
             playerHp: config.maxHp,
@@ -224,10 +250,10 @@
             lastHeard: "-",
             accepted: "-",
             enemyAccepted: "-",
-            playerState: "Choose",
+            playerState: "Ready",
             enemyState: "Ready",
-            message: "Choose your dragon.",
-            note: "Select a dragon, then confirm to battle.",
+            message: config.flow.labels.title,
+            note: config.flow.labels.subtitle,
             result: "",
             stage: 1,
             victories: 0,
@@ -332,6 +358,17 @@
           };
         }
 
+        function getResultActions(config, currentState) {
+          if (currentState.phase !== "result") return [];
+          if (currentState.battleOutcome?.won) {
+            return [{ id: "continueAfterWin", label: config.flow.labels.continue, layout: config.flow.result.continueButton }];
+          }
+          return [
+            { id: "retryMatch", label: config.flow.labels.retryMatch, layout: config.flow.result.retryButton },
+            { id: "backToMainMenu", label: config.flow.labels.backToMainMenu, layout: config.flow.result.menuButton }
+          ];
+        }
+
         const core = {
           getSelectedDragon,
           modifiedAttackDamage,
@@ -343,7 +380,8 @@
           canApplyUpgrade,
           allUpgradesMaxed,
           getCommandCooldown,
-          getBattleRenderData
+          getBattleRenderData,
+          getResultActions
         };
         const state = createInitialState(cfg);
 
@@ -470,6 +508,15 @@
         Object.entries(cfg.assets).forEach(([key, src]) => loadImage(key, src));
         cfg.dragons.forEach((dragon) => loadImage(dragon.id, dragon.asset));
 
+        function initializeCombatCooldowns() {
+          state.cd.attack = cfg.combatStart.cooldowns.attack;
+          state.cd.defence = cfg.combatStart.cooldowns.defence;
+          state.cd.block = cfg.combatStart.cooldowns.block;
+          state.cd.ultimate = cfg.combatStart.ultimateOnFullCooldown
+            ? core.getCommandCooldown(cfg, state, "ultimate")
+            : 0;
+        }
+
         function reset() {
           clearVoiceCommandQueue();
           const playerMaxHp = core.getPlayerMaxHp(cfg, state);
@@ -487,10 +534,7 @@
           state.note = "Voice commands are scanned every 1 second and executed in spoken order.";
           state.result = "";
           state.battleOutcome = null;
-          state.cd.attack = 0;
-          state.cd.defence = 0;
-          state.cd.block = 0;
-          state.cd.ultimate = 0;
+          initializeCombatCooldowns();
           state.defenceTimer = 0;
           state.blockTimer = 0;
           state.enemyTimer = rand(enemy.minWait, enemy.maxWait);
@@ -498,6 +542,24 @@
           state.particles = [];
           state.pendingAttacks = [];
           log("reset");
+        }
+
+        function playNow() {
+          if (state.phase !== "menu") return;
+          state.phase = "select";
+          state.message = "Choose your dragon.";
+          state.note = "Select a dragon, then confirm to battle.";
+          state.playerState = "Choose";
+          log("play_now");
+        }
+
+        function backToMainMenu() {
+          micRequested = false;
+          clearTimeout(recognitionRestartTimer);
+          stopVoiceScanner();
+          if (listening && recognition) recognition.stop();
+          Object.assign(state, createInitialState(cfg));
+          log("back_to_main_menu");
         }
 
         function chooseDragonAgain() {
@@ -770,14 +832,43 @@
           if (state.phase !== "playing") return;
           clearVoiceCommandQueue();
           const won = result.includes("WIN");
-          state.phase = "upgrade";
+          state.phase = "result";
           state.result = result;
-          state.battleOutcome = { result, won, stage: state.stage };
+          state.battleOutcome = {
+            result,
+            won,
+            stage: state.stage,
+            setup: {
+              selectedDragonId: state.selectedDragonId,
+              stage: state.stage,
+              upgrades: { ...state.upgrades }
+            }
+          };
           if (won) state.victories += 1;
           state.pendingAttacks = [];
-          state.message = won ? `Stage ${state.stage} cleared. Choose an upgrade.` : `Stage ${state.stage} holds. Upgrade and retry.`;
-          state.note = "Choose one upgrade for your dragon.";
+          state.message = won ? `Stage ${state.stage} cleared.` : `Stage ${state.stage} holds.`;
+          state.note = won ? cfg.flow.labels.continue : cfg.flow.labels.retryMatch;
           log("finish", { result, playerHp: state.playerHp, enemyHp: state.enemyHp });
+        }
+
+        function continueAfterWin() {
+          if (state.phase !== "result" || !state.battleOutcome?.won) return;
+          state.phase = "upgrade";
+          state.message = `Stage ${state.stage} cleared. Choose an upgrade.`;
+          state.note = "Choose one upgrade for your dragon.";
+          log("continue_after_win", { stage: state.stage });
+        }
+
+        function retryLastBattle() {
+          const setup = state.battleOutcome?.setup;
+          if (state.phase !== "result" || state.battleOutcome?.won || !setup) return;
+          state.selectedDragonId = setup.selectedDragonId;
+          state.stage = setup.stage;
+          state.upgrades = { ...setup.upgrades };
+          reset();
+          state.message = `Retrying Stage ${state.stage}. Adapt and overcome.`;
+          state.note = "Previous dragon and upgrades restored.";
+          log("retry_match", { dragonId: state.selectedDragonId, stage: state.stage });
         }
 
         function beginBattleAfterReward(rewardMessage) {
@@ -917,6 +1008,13 @@
 
         function drawControls() {
           const centerX = cfg.viewport.centerX;
+          if (state.phase === "menu") {
+            buttons.length = 0;
+            const play = cfg.flow.menu.playButton;
+            canvasButton("playNow", play.x, play.y, play.w, play.h, cfg.flow.labels.playNow, "#f6c453dd", "#fff4d6");
+            return;
+          }
+
           if (state.phase === "select") {
             const select = cfg.dragonSelect;
             canvasButton("confirmDragon", select.confirm.x, select.confirm.y, select.confirm.w, select.confirm.h, "Confirm Dragon", state.selectedDragonId ? "#f6c453dd" : "#475569cc", state.selectedDragonId ? "#f6c453" : "#64748b");
@@ -929,14 +1027,21 @@
           }
 
           buttons.length = 0;
-          if (state.phase === "ended") {
-            const choose = cfg.battleLayout.controls.chooseDragonAgain;
-            canvasButton("chooseDragonAgain", choose.x, choose.y, choose.w, choose.h, "Choose Dragon Again", "#102a4cdd", "#87d5ff");
-            ctx.textAlign = "center";
-            ctx.fillStyle = "#cbd5e1";
-            ctx.font = "14px system-ui";
-            ctx.fillText(state.note, centerX, cfg.viewport.height - 10);
-            ctx.textAlign = "left";
+          if (state.phase === "result") {
+            core.getResultActions(cfg, state).forEach((action) => {
+              const isContinue = action.id === "continueAfterWin";
+              const isRetry = action.id === "retryMatch";
+              canvasButton(
+                action.id,
+                action.layout.x,
+                action.layout.y,
+                action.layout.w,
+                action.layout.h,
+                action.label,
+                isContinue ? "#164e35dd" : isRetry ? "#713f12dd" : "#102a4cdd",
+                isContinue ? "#34d399" : isRetry ? "#f6c453" : "#87d5ff"
+              );
+            });
             return;
           }
 
@@ -952,6 +1057,21 @@
           ctx.fillStyle = "#cbd5e1";
           ctx.font = "14px system-ui";
           ctx.fillText(state.note, centerX, cfg.viewport.height - 10);
+          ctx.textAlign = "left";
+        }
+
+        function drawMainMenu() {
+          drawArena();
+          ctx.fillStyle = "#020617b8";
+          ctx.fillRect(0, 0, cfg.viewport.width, cfg.viewport.height);
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#fff4d6";
+          ctx.font = "bold 62px system-ui";
+          ctx.fillText(cfg.flow.labels.title, cfg.viewport.centerX, cfg.flow.menu.titleY);
+          ctx.fillStyle = "#cbd5e1";
+          ctx.font = "20px system-ui";
+          ctx.fillText(cfg.flow.labels.subtitle, cfg.viewport.centerX, cfg.flow.menu.subtitleY);
+          drawControls();
           ctx.textAlign = "left";
         }
 
@@ -1057,6 +1177,22 @@
           ctx.fillStyle = "#94a3b8";
           ctx.font = "14px system-ui";
           ctx.fillText("Keys 1–4 choose an upgrade", cfg.viewport.centerX, cfg.viewport.height - 13);
+          ctx.textAlign = "left";
+        }
+
+        function drawResultOverlay() {
+          const panel = cfg.flow.result.panel;
+          const won = Boolean(state.battleOutcome?.won);
+          ctx.fillStyle = "#020617b8";
+          ctx.fillRect(0, 0, cfg.viewport.width, cfg.viewport.height);
+          rr(panel.x, panel.y, panel.w, panel.h, 26, "#0f172af2", won ? "#34d399" : "#f6c453dd");
+          ctx.textAlign = "center";
+          ctx.font = "bold 44px system-ui";
+          ctx.fillStyle = won ? "#34d399" : state.result.includes("LOSE") ? "#ef4444" : "#f6c453";
+          ctx.fillText(state.result, cfg.viewport.centerX, 250);
+          ctx.fillStyle = "#cbd5e1";
+          ctx.font = "20px system-ui";
+          ctx.fillText(won ? "Victory secured. Continue your run." : "Retry this setup or return to the main menu.", cfg.viewport.centerX, 305);
           ctx.textAlign = "left";
         }
 
@@ -1416,6 +1552,10 @@
         }
 
         function draw() {
+          if (state.phase === "menu") {
+            drawMainMenu();
+            return;
+          }
           if (state.phase === "select") {
             drawDragonSelect();
             return;
@@ -1481,23 +1621,7 @@
           drawCommandPanel(layout.commandReference, "COMMANDS • 1s VOICE WINDOW", "Attack | Defence | Block | Ultimate/Skill");
           drawCommandPanel(layout.enemyCommand, "P2 / AI COMMAND", state.enemyAccepted, "right");
 
-          if (state.phase === "ended") {
-            ctx.fillStyle = "#020617b8";
-            ctx.fillRect(0, 0, cfg.viewport.width, cfg.viewport.height);
-            rr(cfg.viewport.centerX - 275, 175, 550, 250, 26, "#0f172af2", "#f6c453dd");
-            ctx.textAlign = "center";
-            ctx.font = "bold 44px system-ui";
-            ctx.fillStyle = state.phase === "ended" ? state.result.includes("WIN") ? "#34d399" : state.result.includes("LOSE") ? "#ef4444" : "#f6c453" : "#fff4d6";
-            ctx.fillText(state.result, cfg.viewport.centerX, 250);
-            ctx.fillStyle = "#cbd5e1";
-            ctx.font = "20px system-ui";
-            ctx.fillText("Say: Attack, Defence, Block, Ultimate, or Skill", cfg.viewport.centerX, 305);
-            ctx.fillText("Or use canvas buttons / keys A, D, B, U", cfg.viewport.centerX, 340);
-            ctx.fillStyle = "#f6c453";
-            ctx.font = "bold 21px system-ui";
-            ctx.fillText("Choose Dragon Again", cfg.viewport.centerX, 385);
-            ctx.textAlign = "left";
-          }
+          if (state.phase === "result") drawResultOverlay();
 
           drawControls();
 
@@ -1608,6 +1732,22 @@
           const button = buttons.find((item) => x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h);
 
           if (!button) return;
+          if (button.id === "playNow") {
+            playNow();
+            return;
+          }
+          if (button.id === "retryMatch") {
+            retryLastBattle();
+            return;
+          }
+          if (button.id === "backToMainMenu") {
+            backToMainMenu();
+            return;
+          }
+          if (button.id === "continueAfterWin") {
+            continueAfterWin();
+            return;
+          }
           if (button.id.startsWith("upgrade:")) {
             applyUpgrade(button.id.slice("upgrade:".length));
             return;
@@ -1634,7 +1774,15 @@
 
         window.addEventListener("keydown", (e) => {
           const k = e.key.toLowerCase();
+          if (state.phase === "menu" && k === "enter") {
+            playNow();
+            return;
+          }
           if (state.phase === "select" && k === "enter") confirmDragon();
+          if (state.phase === "result" && state.battleOutcome?.won && k === "enter") {
+            continueAfterWin();
+            return;
+          }
           if (state.phase === "upgrade" && ["1", "2", "3", "4"].includes(k)) {
             applyUpgrade(Object.keys(cfg.progression.upgrades)[Number(k) - 1]);
             return;
@@ -1649,6 +1797,19 @@
           if (k === "u") useCommand("ultimate", "keyboard");
           if (k === "r" && state.phase === "playing") reset();
         });
+
+        window.DragonFighter = {
+          CONFIG: cfg,
+          state,
+          core,
+          playNow,
+          confirmDragon,
+          finish,
+          continueAfterWin,
+          retryLastBattle,
+          backToMainMenu,
+          reset
+        };
 
         setupSpeech();
         requestAnimationFrame(loop);

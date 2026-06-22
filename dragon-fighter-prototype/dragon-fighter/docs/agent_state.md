@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-Post-Milestone 3 - Root static Canvas dragon trait pass.
+Post-Milestone 3 - Main menu and post-combat navigation pass.
 
 ## Completed This Turn
 
@@ -43,7 +43,13 @@ Post-Milestone 3 - Root static Canvas dragon trait pass.
 - Removed the extra root `src`, `test`, `scripts`, and `package.json` files so the active Canvas game is one single file.
 - Verified the inline single-file game contains the Dragon Select, all three modifier configs, combat modifier usage, selected dragon rendering, and opposite facing flags.
 - Local HTTP check was previously run at `http://127.0.0.1:5174/index.html`; in-app Browser and local Edge/Chrome binaries were unavailable for screenshot verification.
+- Added a config-driven Canvas Main Menu with Play Now leading to Dragon Select.
+- Added a Canvas result phase: losses/draws offer Retry Match and Back to Main Menu; wins offer only Continue before the existing upgrade flow.
+- Retry restores the previous dragon, stage, and upgrades; Main Menu resets run progress, upgrades, selection, and match state.
+- Ultimate now starts every new or retried battle on its normal full cooldown.
+- Added focused Node tests for menu/result navigation, retry preservation, Main Menu reset, and Ultimate initialization.
+- Verified 6 tests pass, inline JavaScript syntax is valid, the static page returns HTTP 200, and Main Menu/win/loss Canvas screens render correctly in headless Edge.
 
 ## Next Action
 
-Open the root `index.html` directly or serve the repo with any static file server for review; replace temporary dragon placeholders with licensed production-safe assets before any public deployment.
+Review the root game at `http://127.0.0.1:5174/index.html`; replace temporary dragon placeholders with licensed production-safe assets before public deployment.

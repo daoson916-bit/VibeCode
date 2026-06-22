@@ -83,3 +83,15 @@
 - Inlined the root `src/gameCore.js` config and helper logic back into `index.html`.
 - Removed the extra root `src`, `test`, `scripts`, and `package.json` files so the active Canvas game is one single file.
 - Updated memory docs to record that active game config, combat modifier helpers, state, input, and rendering logic now live inline in root `index.html`.
+
+## 2026-06-22
+
+### Main Menu And Result Navigation
+
+- Inspected the available nested agent state/rules and recent work log; the requested `docs/agent_brief.md` was not present in the synced repository.
+- Updated root `index.html` with a config-driven Main Menu, win/loss result actions, retry setup restoration, full run reset, and full starting Ultimate cooldown.
+- Added `tests/game-flow.test.js` with six focused flow and cooldown tests.
+- `node --test tests/game-flow.test.js` passed: 6 tests, 6 pass.
+- Inline JavaScript syntax check and `git diff --check` passed.
+- Static HTTP check returned 200 at `http://127.0.0.1:5174/index.html`.
+- Headless Edge screenshots confirmed the Main Menu and the Canvas win/loss result overlays render without overlap.
