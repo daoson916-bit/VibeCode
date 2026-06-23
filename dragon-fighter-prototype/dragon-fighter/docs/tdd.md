@@ -1,88 +1,79 @@
-# Dragon Fighter - Technical Design
+# Dragon Fighter - Current TDD
 
-## Current Source
+## Runtime Architecture
 
-The playable source of truth is now the repository-root `index.html`, adapted from `voice_command_battle.html`.
-It is a standalone browser game that renders the battle and all controls in a Canvas.
+- The playable source of truth is repository-root `index.html`.
+- HTML, CSS, configuration, state, input, combat, progression, update, and Canvas rendering are inline in that file.
+- There is no framework, package manifest, module source tree, build step, or generated deployment directory.
+- GitHub Pages deploys the repository root; local assets use relative paths under `dragon-fighter-prototype/dragon-fighter/public/`.
 
-The project is intentionally trimmed to:
+## Main Systems
 
-- `/index.html`
-- `dragon-fighter-prototype/dragon-fighter/docs/`
-- `dragon-fighter-prototype/dragon-fighter/public/`
+### Configuration
 
-No npm package, build script, module source tree, or test harness is required for the current single-file game.
+The `cfg` object owns viewport data, combat values, screen labels/layouts, starting cooldown behavior, dragon modifiers, progression formulas, enemy roster, asset paths, projectile profiles, and control geometry.
 
-## Implemented Gameplay
+### State And Flow
 
-- 60 second match timer.
-- Player and enemy both start with 100 HP.
-- Commands: `Attack`, `Defence`, and `Ultimate`.
-- Voice input uses the Web Speech API when available.
-- Canvas button fallback supports microphone, Attack, Defence, Ultimate, and Restart.
-- Keyboard fallback supports `A`, `D`, `U`, and `R`.
-- Any command starts the match when the game is on the ready overlay.
-- Enemy attacks automatically on a random interval between 1.3 and 2.4 seconds.
-- Result overlay appears for win, lose, draw, or HP comparison at timeout.
+`createInitialState()` creates the in-memory run. Main phases are:
 
-## Combat Rules
+- `menu`
+- `select`
+- `playing`
+- `result`
+- `upgrade`
 
-- Attack deals 12 damage to the enemy and has a 1 second cooldown.
-- Defence lasts 3 seconds, has a 5 second cooldown, and reduces enemy damage to 35%.
-- Ultimate deals 35 damage to the enemy and has a 9 second cooldown.
-- Enemy attacks deal 10 damage before Defence reduction.
-- HP is clamped between 0 and 100.
-- Simultaneous defeat is a draw.
-- If time expires, higher HP wins; equal HP draws.
+`playNow()`, `confirmDragon()`, `finish()`, `continueAfterWin()`, `retryLastBattle()`, `backToMainMenu()`, and `applyUpgrade()` own transitions. A loss snapshot stores dragon, stage, and upgrades for exact retry. Main Menu recreates initial state and clears voice queue, match effects, selection, upgrades, and progression.
 
-## Assets
+### Combat
 
-The standalone source uses the current project assets:
+- All voice, keyboard, and Canvas inputs call `useCommand()`.
+- Attack and Ultimate schedule projectiles; damage resolves when cast plus travel time completes.
+- Block negates damage. Defence applies the configured 0.5 multiplier.
+- Cooldowns and active timers update each frame and are clamped at zero.
+- `initializeCombatCooldowns()` starts Attack, Defence, and Block ready while Ultimate starts at `getCommandCooldown(..., "ultimate")` for every new or retried battle.
+- Enemy behavior currently schedules Attack only, using stage-scaled random delays.
 
-- Arena background: `public/assets/backgrounds/arena.png`
-- Player dragon: `public/assets/dragons/fire-dragon-adult.png`
-- Enemy dragon: `public/assets/dragons/moss-boss-dragon-enemy.png`
+### Progression
 
-If any bitmap fails to load, the Canvas falls back to drawn dragon/arena shapes so the game remains playable.
+Dragon modifiers and upgrade ranks feed shared helpers for Attack damage, Defence duration, maximum HP, Block cooldown, and Attack/Ultimate cooldown. Enemy stats derive from stage using configured HP, damage, timing, roster, and scale formulas.
 
-## UI And Rendering
+### Rendering And Assets
 
-- The battle screen is drawn on a 1100 by 620 Canvas.
-- HUD panels show player HP, enemy HP, timer, cooldowns, player state, enemy state, current message, latest heard phrase, and accepted command.
-- The microphone, action, and restart buttons are drawn inside the Canvas.
-- A ready overlay is shown before the first command.
-- A result overlay is shown after match end.
-- Particle effects and screen shake communicate hits, Defence, and Ultimate.
+- One 1400 by 620 Canvas renders every screen and control.
+- The game preloads configured images and logs load failures.
+- Dragon and arena drawing have Canvas fallbacks.
+- PNG projectile images are processed in memory to remove connected light backgrounds; SVG data URI fallbacks remain available.
+- Pointer hit regions are rebuilt from the controls drawn for the current phase.
 
-## Input
+### Voice Input
 
-Speech recognition accepts complete words after normalization:
+Web Speech API results are normalized into Attack, Defence, Block, or Ultimate commands. Final results are deduplicated and queued into configured one-second scan windows. Unsupported or denied microphone access leaves Canvas and keyboard controls usable.
 
-- `attack`
-- `defence`
-- `defense`
-- `ultimate`
+## Public Test Surface
 
-Canvas fallback controls and keyboard shortcuts call the same `useCommand` path as voice commands.
+`window.DragonFighter` exposes configuration, state, core helpers, and flow functions used by the lightweight tests. It is not a second gameplay implementation.
 
-## Diagnostics
+## Tests
 
-The game logs key events with the `[DragonFighter]` prefix:
+Run:
 
-- asset load or failure
-- reset
-- command
-- enemy attack
-- match finish
-- microphone start/end/error
-- final speech phrase
+```powershell
+node --test tests/game-flow.test.js
+```
 
-## Build
+The current six tests cover Main Menu entry, Play Now, loss actions, win Continue routing, retry setup restoration, Main Menu reset, and Ultimate starting cooldown. Inline JavaScript can be syntax-checked by extracting the script and running `node --check`; there is no build command.
 
-There is no build step. GitHub Pages uploads the repository root directly.
-The deployable game entry is `/index.html`.
+## Deployment
 
-## Follow-Up Technical Work
+- Entry point: `/index.html`
+- Deployment artifact: repository root
+- Workflow: `.github/workflows/pages.yml`
+- Required runtime: modern browser with Canvas; Web Speech API is optional
 
-- Replace temporary private prototype dragon assets before public release.
-- Add tests only if the project grows beyond the current single-file prototype.
+## Known Constraints
+
+- State is not persisted across reloads.
+- Voice support and permission behavior vary by browser.
+- Current prototype images require replacement before public distribution.
+- Automated coverage is focused on navigation and cooldown initialization; combat and progression helpers have residual regression risk.

@@ -1,43 +1,34 @@
 # Dragon Fighter - Current Plan
 
-## Done
+## Completed
 
-- Replaced the previous playable page with the standalone `voice_command_battle.html` game flow.
-- Cleaned the page text into readable English.
-- Kept the playable source as one Canvas-only HTML game file at repository-root `index.html`.
-- Removed the old npm/module/test/build structure from the game folder.
-- Wired the game to current project assets instead of only drawn placeholder dragons.
-- Added asset fallbacks so the battle still renders if an image fails.
-- Preserved voice commands, Canvas button fallback, keyboard fallback, enemy auto attacks, cooldowns, timer, result flow, and restart.
-- GitHub Pages deploys the repository root directly.
+- Consolidated the playable game into repository-root `index.html` with no build system.
+- Added a Canvas Main Menu and Play Now transition to Dragon Select.
+- Added Ember, Tide, and Moss with config-driven combat modifiers.
+- Implemented shared voice, keyboard, and Canvas controls for Attack, Defence, Block, and Ultimate.
+- Implemented projectiles, damage resolution, cooldowns, Defence, Block, enemy attacks, timer results, and visual feedback.
+- Added stage scaling, enemy rotation, four upgrade paths, and win-to-upgrade progression.
+- Added Continue-only win navigation and Retry/Main Menu loss and draw navigation.
+- Preserved dragon, stage, and upgrades on retry; reset the complete run on Main Menu.
+- Made Ultimate start on full cooldown for every battle and retry.
+- Added relative local assets, Canvas fallbacks, GitHub Pages deployment, and six focused flow tests.
 
-## Current Playable Scope
+## Current Validation
 
-The game is a one-screen voice-command dragon battle:
+- `node --test tests/game-flow.test.js`
+- Inline script syntax check with `node --check`
+- Serve repository root and review `/index.html`
+- Confirm Main Menu, Dragon Select, combat, win Continue, upgrade, loss Retry, and Main Menu reset.
+- Confirm Ultimate is unavailable at battle start and becomes ready when its cooldown reaches zero.
 
-- Start by saying or pressing Attack, Defence, or Ultimate.
-- Survive enemy auto attacks.
-- Use Defence to reduce incoming damage.
-- Use Ultimate for a high-damage attack.
-- Win by reducing enemy HP to 0 or having higher HP when time expires.
-- Restart with the Restart button or `R`.
+## Next Priorities
 
-## Validation Checklist
+1. Replace temporary dragon images with licensed production-safe assets.
+2. Add focused tests for damage priority, stage scaling, upgrade formulas, and voice command normalization.
+3. Verify microphone permissions and responsive Canvas sizing on target desktop and mobile browsers.
+4. Tune combat and progression values from playtest feedback without changing the single-file architecture.
 
-- Open `/index.html` and confirm it shows one Canvas game surface, not a folder listing.
-- Confirm the arena background loads from `public/assets/backgrounds/arena.png`.
-- Confirm player and enemy dragon images load from `public/assets/dragons/`.
-- Confirm microphone, action, and restart buttons are drawn inside the Canvas.
-- Press Attack and confirm enemy HP drops by 12.
-- Press Defence and confirm incoming enemy damage is reduced.
-- Press Ultimate and confirm enemy HP drops by 35.
-- Press commands during cooldown and confirm a cooldown message appears.
-- Press `A`, `D`, `U`, and `R` and confirm they match the buttons.
-- In a supported browser, start the microphone and say Attack, Defence, or Ultimate.
-- Let the match end and confirm the result overlay appears.
-- Confirm GitHub Pages deploys `/index.html` directly.
+## Not Planned
 
-## Next Steps
-
-- Replace temporary private prototype assets before sharing publicly.
-- Tune mobile layout and microphone permission messaging after browser testing.
+- Build tooling or a framework migration.
+- Online multiplayer, accounts, monetization, persistent progression, movement, or multiple arenas.

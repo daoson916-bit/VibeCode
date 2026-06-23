@@ -95,3 +95,13 @@
 - Inline JavaScript syntax check and `git diff --check` passed.
 - Static HTTP check returned 200 at `http://127.0.0.1:5174/index.html`.
 - Headless Edge screenshots confirmed the Main Menu and the Canvas win/loss result overlays render without overlap.
+
+## 2026-06-23
+
+### Current Documentation Alignment
+
+- Reviewed root `index.html`, `tests/game-flow.test.js`, Git history, and the existing GDD, TDD, and plan.
+- Rewrote `docs/gdd.md`, `docs/tdd.md`, and `docs/plan.md` to match the implemented single-file game, current values, flow, progression, assets, tests, and remaining constraints.
+- Removed stale countdown, one-screen, one-dragon, old combat-value, and no-test claims.
+- `node --test tests/game-flow.test.js` passed: 6 tests, 6 pass.
+- `git diff --check` passed.

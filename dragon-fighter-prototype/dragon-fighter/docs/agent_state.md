@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-Post-Milestone 3 - Main menu and post-combat navigation pass.
+Post-Milestone 3 - Current documentation alignment.
 
 ## Completed This Turn
 
@@ -49,7 +49,10 @@ Post-Milestone 3 - Main menu and post-combat navigation pass.
 - Ultimate now starts every new or retried battle on its normal full cooldown.
 - Added focused Node tests for menu/result navigation, retry preservation, Main Menu reset, and Ultimate initialization.
 - Verified 6 tests pass, inline JavaScript syntax is valid, the static page returns HTTP 200, and Main Menu/win/loss Canvas screens render correctly in headless Edge.
+- Reviewed the current root `index.html`, flow tests, and Git history against `gdd.md`, `tdd.md`, and `plan.md`.
+- Replaced stale one-screen/countdown/one-dragon documentation with concise descriptions of the implemented menu, three-dragon selection, four-command combat, progression, result routing, single-file architecture, and test surface.
+- Re-ran the six flow tests successfully after the documentation update.
 
 ## Next Action
 
-Review the root game at `http://127.0.0.1:5174/index.html`; replace temporary dragon placeholders with licensed production-safe assets before public deployment.
+Replace temporary dragon placeholders with licensed production-safe assets, then expand tests around combat and progression formulas.
