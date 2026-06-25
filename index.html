@@ -61,11 +61,13 @@
           enemyMinWait: 1.3,
           enemyMaxWait: 2.4,
           voice: {
-            scanIntervalMs: 1000,
+            language: "en-US",
+            scanIntervalMs: 500,
+            scanIntervalSeconds: 0.5,
             duplicateWindowMs: 650
           },
           flow: {
-            initialPhase: "menu",
+            initialPhase: "tutorial",
             labels: {
               title: "Dragon Fighter",
               subtitle: "Choose your dragon. Master the arena.",
@@ -78,6 +80,35 @@
               titleY: 230,
               subtitleY: 278,
               playButton: { x: 565, y: 340, w: 270, h: 58 }
+            },
+            tutorial: {
+              storageKey: "dragon-fighter-tutorial-complete",
+              panel: { x: 355, y: 110, w: 690, h: 390 },
+              titleY: 164,
+              bodyX: 700,
+              bodyY: 230,
+              lineHeight: 28,
+              nextButton: { x: 560, y: 420, w: 135, h: 48 },
+              skipButton: { x: 405, y: 420, w: 135, h: 48 },
+              doneButton: { x: 705, y: 420, w: 135, h: 48 },
+              steps: [
+                {
+                  title: "Choose A Dragon",
+                  body: "Pick Ember, Tide, or Moss. Each dragon changes your Attack, Defence, or Skill timing."
+                },
+                {
+                  title: "Fight With Four Commands",
+                  body: "Use Attack, Defence, Block, and Ultimate. Speak one full command word, press A/D/B/U, or tap a command button."
+                },
+                {
+                  title: "Watch Cooldowns",
+                  body: "A command cannot be used while cooling down. Ultimate starts every battle on full cooldown."
+                },
+                {
+                  title: "Build Frenzy",
+                  body: "Stay aggressive, time your defence, and keep pressure high to play in a Frenzy rhythm."
+                }
+              ]
             },
             result: {
               panel: { x: 425, y: 175, w: 550, h: 250 },
@@ -240,9 +271,36 @@
           return getDragonById(config, currentState.selectedDragonId);
         }
 
+        function storageAvailable() {
+          return Boolean(window.localStorage);
+        }
+
+        function tutorialCompleted(config) {
+          try {
+            return storageAvailable() && window.localStorage.getItem(config.flow.tutorial.storageKey) === "true";
+          } catch (error) {
+            return false;
+          }
+        }
+
+        function saveTutorialCompleted(config) {
+          try {
+            if (storageAvailable()) window.localStorage.setItem(config.flow.tutorial.storageKey, "true");
+          } catch (error) {
+            log("tutorial_persistence_failed", { message: error.message });
+          }
+        }
+
+        function getInitialPhase(config) {
+          return tutorialCompleted(config) ? "menu" : config.flow.initialPhase;
+        }
+
         function createInitialState(config) {
+          const initialPhase = getInitialPhase(config);
           return {
-            phase: config.flow.initialPhase,
+            phase: initialPhase,
+            tutorialStep: 0,
+            tutorialComplete: initialPhase !== "tutorial",
             selectedDragonId: null,
             time: config.matchTime,
             playerHp: config.maxHp,
@@ -252,8 +310,8 @@
             enemyAccepted: "-",
             playerState: "Ready",
             enemyState: "Ready",
-            message: config.flow.labels.title,
-            note: config.flow.labels.subtitle,
+            message: initialPhase === "tutorial" ? "Welcome to Dragon Fighter." : config.flow.labels.title,
+            note: initialPhase === "tutorial" ? "Next explains the basics." : config.flow.labels.subtitle,
             result: "",
             stage: 1,
             victories: 0,
@@ -531,7 +589,7 @@
           state.playerState = "Ready";
           state.enemyState = "Ready";
           state.message = `Stage ${state.stage}: ${enemy.name} approaches.`;
-          state.note = "Voice commands are scanned every 1 second and executed in spoken order.";
+          state.note = "Voice commands use one full English word. Mic on disables manual combat controls.";
           state.result = "";
           state.battleOutcome = null;
           initializeCombatCooldowns();
@@ -553,12 +611,37 @@
           log("play_now");
         }
 
+        function completeTutorial() {
+          state.tutorialComplete = true;
+          state.phase = "menu";
+          state.message = cfg.flow.labels.title;
+          state.note = cfg.flow.labels.subtitle;
+          saveTutorialCompleted(cfg);
+          log("tutorial_complete");
+        }
+
+        function nextTutorialStep() {
+          if (state.phase !== "tutorial") return;
+          if (state.tutorialStep >= cfg.flow.tutorial.steps.length - 1) {
+            completeTutorial();
+            return;
+          }
+          state.tutorialStep += 1;
+          state.message = cfg.flow.tutorial.steps[state.tutorialStep].title;
+          state.note = "Next continues, Skip closes the tutorial.";
+          log("tutorial_next", { step: state.tutorialStep });
+        }
+
         function backToMainMenu() {
           micRequested = false;
           clearTimeout(recognitionRestartTimer);
           stopVoiceScanner();
           if (listening && recognition) recognition.stop();
           Object.assign(state, createInitialState(cfg));
+          state.phase = "menu";
+          state.tutorialComplete = true;
+          state.message = cfg.flow.labels.title;
+          state.note = cfg.flow.labels.subtitle;
           log("back_to_main_menu");
         }
 
@@ -618,11 +701,17 @@
         }
 
         function commandFromSpeech(text) {
-          return commandsFromSpeech(text)[0] || null;
+          const words = normalize(text).split(" ").filter(Boolean);
+          if (words.length !== 1) return null;
+          return commandFromWord(words[0]);
         }
 
         function clearVoiceCommandQueue() {
           voiceCommandQueue.length = 0;
+        }
+
+        function processVoiceTick() {
+          log("voice_tick", { active: micRequested, phase: state.phase });
         }
 
         function flushVoiceCommandQueue() {
@@ -642,13 +731,34 @@
 
         function startVoiceScanner() {
           if (voiceScanTimer !== null) return;
-          voiceScanTimer = setInterval(flushVoiceCommandQueue, cfg.voice.scanIntervalMs);
+          voiceScanTimer = setInterval(processVoiceTick, cfg.voice.scanIntervalMs);
         }
 
         function stopVoiceScanner() {
           if (voiceScanTimer !== null) clearInterval(voiceScanTimer);
           voiceScanTimer = null;
           clearVoiceCommandQueue();
+        }
+
+        function manualCombatInputDisabled() {
+          return micRequested;
+        }
+
+        function processRecognizedCommand(command, signature = command, now = performance.now()) {
+          if (!micRequested || state.phase !== "playing" || !command) return false;
+          const duplicate = signature === lastVoiceCommand.signature && now - lastVoiceCommand.at < cfg.voice.duplicateWindowMs;
+          if (duplicate) {
+            log("voice_duplicate_ignored", { command });
+            return false;
+          }
+          lastVoiceCommand = { signature, at: now };
+          const ready = state.cd[command] <= 0;
+          useCommand(command, "voice");
+          state.note = ready
+            ? `Voice cast: ${command.toUpperCase()}`
+            : `Voice heard ${command.toUpperCase()}; cooldown ${state.cd[command].toFixed(1)}s`;
+          log("voice_command_processed", { command, ready });
+          return ready;
         }
 
         function confirmDragon() {
@@ -726,6 +836,12 @@
 
         function useCommand(cmd, source = "button") {
           if (state.phase !== "playing") return;
+          if (source !== "voice" && manualCombatInputDisabled()) {
+            state.message = "Manual combat controls are disabled while mic is on.";
+            state.note = "Use voice commands or stop the mic to use buttons and keys.";
+            log("manual_command_blocked", { cmd, source });
+            return;
+          }
 
           state.accepted = cmd.toUpperCase();
           log("command", { cmd, source });
@@ -995,12 +1111,12 @@
           ctx.textAlign = "left";
         }
 
-        function canvasButton(id, x, y, w, h, label, fill, border) {
-          buttons.push({ id, x, y, w, h });
+        function canvasButton(id, x, y, w, h, label, fill, border, disabled = false) {
+          buttons.push({ id, x, y, w, h, disabled });
           ctx.save();
           rr(x, y, w, h, 18, fill, border);
           ctx.textAlign = "center";
-          ctx.fillStyle = "#fff4d6";
+          ctx.fillStyle = disabled ? "#94a3b8" : "#fff4d6";
           ctx.font = "bold 15px system-ui";
           ctx.fillText(label, x + w / 2, y + 27);
           ctx.restore();
@@ -1008,6 +1124,16 @@
 
         function drawControls() {
           const centerX = cfg.viewport.centerX;
+          if (state.phase === "tutorial") {
+            buttons.length = 0;
+            const tutorial = cfg.flow.tutorial;
+            const lastStep = state.tutorialStep >= tutorial.steps.length - 1;
+            canvasButton("tutorialSkip", tutorial.skipButton.x, tutorial.skipButton.y, tutorial.skipButton.w, tutorial.skipButton.h, "Skip", "#102a4cdd", "#87d5ff");
+            canvasButton("tutorialNext", tutorial.nextButton.x, tutorial.nextButton.y, tutorial.nextButton.w, tutorial.nextButton.h, lastStep ? "Done" : "Next", "#f6c453dd", "#fff4d6");
+            canvasButton("tutorialDone", tutorial.doneButton.x, tutorial.doneButton.y, tutorial.doneButton.w, tutorial.doneButton.h, "Done", "#164e35dd", "#34d399");
+            return;
+          }
+
           if (state.phase === "menu") {
             buttons.length = 0;
             const play = cfg.flow.menu.playButton;
@@ -1046,11 +1172,12 @@
           }
 
           const controls = cfg.battleLayout.controls;
+          const manualDisabled = manualCombatInputDisabled();
           canvasButton("mic", controls.mic.x, controls.mic.y, controls.mic.w, controls.mic.h, micRequested ? "Stop Mic" : "Start Mic", listening ? "#164e35dd" : micRequested ? "#713f12dd" : "#f6c453dd", "#f6c453");
-          canvasButton("attack", controls.attack.x, controls.attack.y, controls.attack.w, controls.attack.h, "Attack", "#402313dd", "#fb923c");
-          canvasButton("defence", controls.defence.x, controls.defence.y, controls.defence.w, controls.defence.h, "Defence", "#16324add", "#60a5fa");
-          canvasButton("block", controls.block.x, controls.block.y, controls.block.w, controls.block.h, "Block", "#3b2b12dd", "#f6c453");
-          canvasButton("ultimate", controls.ultimate.x, controls.ultimate.y, controls.ultimate.w, controls.ultimate.h, "Ultimate", "#30215bdd", "#a78bfa");
+          canvasButton("attack", controls.attack.x, controls.attack.y, controls.attack.w, controls.attack.h, "Attack", manualDisabled ? "#1f2937aa" : "#402313dd", manualDisabled ? "#64748b" : "#fb923c", manualDisabled);
+          canvasButton("defence", controls.defence.x, controls.defence.y, controls.defence.w, controls.defence.h, "Defence", manualDisabled ? "#1f2937aa" : "#16324add", manualDisabled ? "#64748b" : "#60a5fa", manualDisabled);
+          canvasButton("block", controls.block.x, controls.block.y, controls.block.w, controls.block.h, "Block", manualDisabled ? "#1f2937aa" : "#3b2b12dd", manualDisabled ? "#64748b" : "#f6c453", manualDisabled);
+          canvasButton("ultimate", controls.ultimate.x, controls.ultimate.y, controls.ultimate.w, controls.ultimate.h, "Ultimate", manualDisabled ? "#1f2937aa" : "#30215bdd", manualDisabled ? "#64748b" : "#a78bfa", manualDisabled);
           canvasButton("restart", controls.restart.x, controls.restart.y, controls.restart.w, controls.restart.h, "Restart", "#102a4cdd", "#87d5ff");
 
           ctx.textAlign = "center";
@@ -1071,6 +1198,30 @@
           ctx.fillStyle = "#cbd5e1";
           ctx.font = "20px system-ui";
           ctx.fillText(cfg.flow.labels.subtitle, cfg.viewport.centerX, cfg.flow.menu.subtitleY);
+          drawControls();
+          ctx.textAlign = "left";
+        }
+
+        function drawTutorial() {
+          const tutorial = cfg.flow.tutorial;
+          const step = tutorial.steps[state.tutorialStep] || tutorial.steps[0];
+          drawArena();
+          ctx.fillStyle = "#020617c9";
+          ctx.fillRect(0, 0, cfg.viewport.width, cfg.viewport.height);
+          rr(tutorial.panel.x, tutorial.panel.y, tutorial.panel.w, tutorial.panel.h, 24, "#0f172af2", "#f6c453aa");
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#f6c453";
+          ctx.font = "bold 22px system-ui";
+          ctx.fillText(`Tutorial ${state.tutorialStep + 1}/${tutorial.steps.length}`, cfg.viewport.centerX, tutorial.titleY - 42);
+          ctx.fillStyle = "#fff4d6";
+          ctx.font = "bold 38px system-ui";
+          ctx.fillText(step.title, cfg.viewport.centerX, tutorial.titleY);
+          ctx.fillStyle = "#cbd5e1";
+          ctx.font = "20px system-ui";
+          wrapText(step.body, tutorial.bodyX, tutorial.bodyY, tutorial.panel.w - 115, tutorial.lineHeight);
+          ctx.fillStyle = "#94a3b8";
+          ctx.font = "15px system-ui";
+          ctx.fillText("Next, Skip, and Done are drawn inside the Canvas.", cfg.viewport.centerX, 365);
           drawControls();
           ctx.textAlign = "left";
         }
@@ -1552,6 +1703,10 @@
         }
 
         function draw() {
+          if (state.phase === "tutorial") {
+            drawTutorial();
+            return;
+          }
           if (state.phase === "menu") {
             drawMainMenu();
             return;
@@ -1638,12 +1793,12 @@
 
         function setupSpeech() {
           if (!SpeechRecognition) {
-            state.note = "This browser does not support Web Speech API. Use canvas buttons or A/D/B/U/R.";
+            if (state.phase !== "tutorial") state.note = "This browser does not support Web Speech API. Use canvas buttons or A/D/B/U/R.";
             return;
           }
 
           recognition = new SpeechRecognition();
-          recognition.lang = "en-US";
+          recognition.lang = cfg.voice.language;
           recognition.continuous = true;
           recognition.interimResults = true;
           recognition.maxAlternatives = 3;
@@ -1652,7 +1807,7 @@
             listening = true;
             speechError = "";
             startVoiceScanner();
-            state.note = "Listening. Commands execute once per second in spoken order.";
+            state.note = "Listening. Say one full command word in English.";
             log("mic_start");
           };
 
@@ -1691,16 +1846,30 @@
                 text: alternative.transcript,
                 normalized: normalize(alternative.transcript),
                 confidence: alternative.confidence,
-                commands: commandsFromSpeech(alternative.transcript)
+                command: commandFromSpeech(alternative.transcript)
               }));
               const best = alternatives.reduce((selected, alternative) => {
                 if (!selected) return alternative;
-                if (alternative.commands.length !== selected.commands.length) {
-                  return alternative.commands.length > selected.commands.length ? alternative : selected;
+                if (Boolean(alternative.command) !== Boolean(selected.command)) {
+                  return alternative.command ? alternative : selected;
                 }
                 return alternative.confidence > selected.confidence ? alternative : selected;
               }, null);
               state.lastHeard = best?.normalized || "-";
+
+              if (e.results[i].isFinal) {
+                const now = performance.now();
+                const signature = `${best?.command || "unknown"}:${best?.normalized || ""}`;
+                const duplicate = signature === lastVoiceCommand.signature && now - lastVoiceCommand.at < cfg.voice.duplicateWindowMs;
+                log("speech_final", { alternatives, command: best?.command || null, duplicate });
+
+                if (!duplicate && best?.command && state.phase === "playing") {
+                  processRecognizedCommand(best.command, signature, now);
+                } else if (!duplicate && state.phase === "playing") {
+                  state.message = "Not recognized. Say one full word: Attack, Defence, Block, Ultimate, or Skill.";
+                }
+                continue;
+              }
 
               if (e.results[i].isFinal) {
                 const now = performance.now();
@@ -1720,7 +1889,7 @@
             }
           };
 
-          state.note = "Voice is supported. Commands scan every 1 second in spoken order.";
+          if (state.phase !== "tutorial") state.note = "Voice is supported. Say one full English command word.";
         }
 
         canvas.addEventListener("pointerup", (e) => {
@@ -1731,7 +1900,15 @@
           const y = (e.clientY - rect.top) * scaleY;
           const button = buttons.find((item) => x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h);
 
-          if (!button) return;
+          if (!button || button.disabled) return;
+          if (button.id === "tutorialNext") {
+            nextTutorialStep();
+            return;
+          }
+          if (button.id === "tutorialSkip" || button.id === "tutorialDone") {
+            completeTutorial();
+            return;
+          }
           if (button.id === "playNow") {
             playNow();
             return;
@@ -1774,6 +1951,14 @@
 
         window.addEventListener("keydown", (e) => {
           const k = e.key.toLowerCase();
+          if (state.phase === "tutorial" && k === "enter") {
+            nextTutorialStep();
+            return;
+          }
+          if (state.phase === "tutorial" && k === "escape") {
+            completeTutorial();
+            return;
+          }
           if (state.phase === "menu" && k === "enter") {
             playNow();
             return;
@@ -1791,10 +1976,10 @@
             continueWithMaxUpgrades();
             return;
           }
-          if (k === "a") useCommand("attack", "keyboard");
-          if (k === "d") useCommand("defence", "keyboard");
-          if (k === "b") useCommand("block", "keyboard");
-          if (k === "u") useCommand("ultimate", "keyboard");
+          if (!manualCombatInputDisabled() && k === "a") useCommand("attack", "keyboard");
+          if (!manualCombatInputDisabled() && k === "d") useCommand("defence", "keyboard");
+          if (!manualCombatInputDisabled() && k === "b") useCommand("block", "keyboard");
+          if (!manualCombatInputDisabled() && k === "u") useCommand("ultimate", "keyboard");
           if (k === "r" && state.phase === "playing") reset();
         });
 
@@ -1803,12 +1988,22 @@
           state,
           core,
           playNow,
+          nextTutorialStep,
+          completeTutorial,
           confirmDragon,
           finish,
           continueAfterWin,
           retryLastBattle,
           backToMainMenu,
-          reset
+          reset,
+          toggleMic,
+          useCommand,
+          processRecognizedCommand,
+          commandFromSpeech,
+          manualCombatInputDisabled,
+          getRecognition: () => recognition,
+          getButtons: () => buttons.slice(),
+          draw
         };
 
         setupSpeech();

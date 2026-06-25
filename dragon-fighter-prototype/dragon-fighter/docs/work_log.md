@@ -105,3 +105,14 @@
 - Removed stale countdown, one-screen, one-dragon, old combat-value, and no-test claims.
 - `node --test tests/game-flow.test.js` passed: 6 tests, 6 pass.
 - `git diff --check` passed.
+
+## 2026-06-25
+
+### Tutorial And Voice Input
+
+- Read nested `docs/agent_state.md`, `docs/agent_rules_short.md`, and the last 30 lines of `docs/work_log.md`; root `docs/agent_brief.md` was not present.
+- Updated root `index.html` with a Canvas tutorial, tutorial completion persistence, config-driven `en-US` speech recognition, 0.5s voice scan timing, strict one-word voice command handling, immediate voice casts, cooldown feedback, duplicate-result suppression, and mic-active manual combat input disabling.
+- Expanded `tests/game-flow.test.js` from 6 to 11 tests covering tutorial flow, voice config, immediate/cooldown/duplicate voice behavior, mic-active button/key disabling, voice command continuity, and manual command restoration after mic stop.
+- `node --test tests/game-flow.test.js` passed: 11 tests, 11 pass.
+- `git diff --check` passed.
+- Local static server check returned HTTP 200 at `http://127.0.0.1:5174/index.html`.

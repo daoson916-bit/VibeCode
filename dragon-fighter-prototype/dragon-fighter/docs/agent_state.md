@@ -52,7 +52,13 @@ Post-Milestone 3 - Current documentation alignment.
 - Reviewed the current root `index.html`, flow tests, and Git history against `gdd.md`, `tdd.md`, and `plan.md`.
 - Replaced stale one-screen/countdown/one-dragon documentation with concise descriptions of the implemented menu, three-dragon selection, four-command combat, progression, result routing, single-file architecture, and test surface.
 - Re-ran the six flow tests successfully after the documentation update.
+- Added a Canvas-only tutorial phase before Main Menu with Next, Skip, and Done controls.
+- Added guarded tutorial completion persistence using localStorage when available.
+- Updated voice recognition to use config-driven `en-US`, a 0.5s scan interval, strict one-word command validation, immediate final-result processing, cooldown feedback, and duplicate-result prevention.
+- Disabled manual combat command buttons and A/D/B/U shortcuts while the mic is active; voice commands, mic, navigation, and restart remain usable.
+- Expanded `tests/game-flow.test.js` to cover tutorial flow, voice config, immediate voice casting, cooldown rejection, duplicate voice suppression, mic/manual lockout, and manual controls re-enabling.
+- Verified 11 Node tests pass and `git diff --check` passes.
 
 ## Next Action
 
-Replace temporary dragon placeholders with licensed production-safe assets, then expand tests around combat and progression formulas.
+Manually verify tutorial and mic behavior in a browser, then replace temporary dragon placeholders with licensed production-safe assets.
