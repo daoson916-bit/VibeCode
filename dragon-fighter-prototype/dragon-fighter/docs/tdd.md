@@ -15,7 +15,7 @@ The inline `cfg` object owns:
 - labels, menu/tutorial/result/pause/confirmation layout, and dragon-select layout
 - combat values, cooldowns, timers, and starting cooldown behavior
 - Q/W/E/R combat key mapping
-- voice language, scan interval, and duplicate-result window
+- voice language, scan interval, duplicate-result window, and voice assist multiplier
 - dragon modifiers, enemy roster, progression formulas, and upgrade definitions
 - asset paths, projectile profiles, and facing rules
 
@@ -38,12 +38,13 @@ Loss/draw retry restores the previous dragon, stage, and upgrades. Pause retry k
 
 - Voice, keyboard, and Canvas inputs all route through the same command path.
 - `commandFromKey()` maps Q/W/E/R to Attack, Defence, Block, and Ultimate.
-- `commandFromSpeech()` accepts one normalized command word for Attack, Defence/Defense, Block, Ultimate, or Skill.
+- `processVoiceTick()` consumes the latest queued transcript, normalizes it, extracts the first valid command word, and routes it through the same command path.
+- Repeated valid words in one transcript, such as "attack attack", trigger one command.
 - Attack and Ultimate schedule pending projectile attacks; damage resolves after cast and travel timing.
 - Block negates incoming damage. Defence applies the configured damage multiplier.
 - Cooldowns and active timers update each frame and clamp at zero.
 - Ultimate starts at its full command cooldown for every new or retried battle.
-- Enemy behavior currently schedules Attack only, using stage-scaled random waits.
+- Enemy behavior currently schedules Attack only, using stage-scaled random waits. While voice assist is enabled and the mic is on, the enemy timer counts down by the configured multiplier.
 - Pause freezes match time, AI timer, cooldowns, particles/effects, pending projectiles, screen shake, and Frenzy timer.
 
 ## Progression
@@ -56,13 +57,14 @@ Enemy stats derive from stage index using configured HP, damage, wait-time, rost
 
 - One 1400 by 620 Canvas renders every screen and control.
 - Drawing functions rebuild pointer hit regions for the currently rendered controls.
+- Combat command buttons display cooldown seconds directly and are dimmed while cooling down or while manual combat input is disabled.
 - Dragon and arena images have Canvas fallbacks.
 - PNG projectile assets are processed in memory to remove connected light backgrounds; SVG data URI fallbacks remain configured.
 - Overlays handle tutorial, result, pause, and change-dragon confirmation without leaving the Canvas UI.
 
 ## Voice Input
 
-The Web Speech API is optional. When available, recognition uses `en-US`, continuous interim results, final-result processing, duplicate suppression, and a configured 0.5 second scan cadence.
+The Web Speech API is optional. When available, recognition uses `en-US`, continuous interim results, queued final transcripts, `processVoiceTick()` parsing, duplicate suppression, and a configured 0.5 second scan cadence.
 
 Manual combat controls are disabled while microphone input is active. Unsupported or denied microphone access leaves keyboard and Canvas controls usable.
 
@@ -78,7 +80,7 @@ Run:
 node --test tests/game-flow.test.js
 ```
 
-The current 21 tests cover Main Menu and Tutorial flow, tutorial buttons, result routing, retry and Main Menu reset behavior, Ultimate starting cooldown, voice config and command handling, mic/manual input lockout, Q/W/E/R mapping, old-key rejection, pause behavior, paused retry/reset, and Change Dragon confirmation.
+The current 27 tests cover Main Menu and Tutorial flow, tutorial buttons, result routing, retry and Main Menu reset behavior, Ultimate starting cooldown, voice config and tick processing, repeated speech, cooldown voice feedback, mic/manual input lockout, Q/W/E/R mapping, old-key rejection, voice assist, button cooldown labels, pause behavior, paused retry/reset, and Change Dragon confirmation.
 
 Inline JavaScript can also be syntax-checked by extracting the script from `index.html` and running `node --check`. There is no build command.
 

@@ -182,3 +182,14 @@
 
 - Reviewed current docs, `tests/game-flow.test.js`, and root `index.html` signals for tutorial, pause, voice, key mapping, confirmation, progression, and testing behavior.
 - Updated `docs/gdd.md`, `docs/tdd.md`, and `docs/plan.md` to remove stale A/D/B/U and six-test claims and add current Main Menu, Tutorial, Q/W/E/R, Pause, Change Dragon confirmation, Web Speech, and 21-test details.
+
+### Voice Combat Feedback And Balance
+
+- Read `docs/agent_state.md`, confirmed `docs/agent_brief.md` is missing, and reviewed the last 30 lines of `docs/work_log.md`.
+- Updated root `index.html` so combat command buttons show cooldown seconds directly and dim while cooling down or while mic mode disables manual combat input.
+- Made `processVoiceTick()` process queued transcripts, normalize speech, cast the first valid command once, report Unknown/Cooldown/Cast/Inactive/Duplicate voice results, and support repeated phrases such as "attack attack".
+- Added config-controlled voice assist with a 1.3 enemy timer multiplier while mic mode is active.
+- Added short voice debug UI for latest heard phrase, parsed command, and result.
+- Expanded `tests/game-flow.test.js` to 27 tests for voice tick processing, repeated speech, cooldown voice feedback, manual lockout, voice assist, and button cooldown display.
+- `git diff --check` passed; Node-based tests could not run because `node` is not available on PATH in this shell.
+- Python static server check returned HTTP 200 at `http://127.0.0.1:5174/index.html`.

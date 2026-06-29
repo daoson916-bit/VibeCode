@@ -7,14 +7,15 @@
 - Added Ember, Tide, and Moss with config-driven combat modifiers.
 - Implemented shared voice, keyboard, and Canvas controls for Attack, Defence, Block, and Ultimate.
 - Remapped combat keyboard shortcuts to Q/W/E/R and removed the old A/D/B/U combat mapping.
-- Added Web Speech API support with `en-US`, one-word command recognition, duplicate suppression, cooldown feedback, and manual combat lockout while the mic is active.
-- Implemented projectiles, damage resolution, cooldowns, Defence, Block, Ultimate, enemy attacks, timer results, pause freezing, and combat feedback.
+- Added Web Speech API support with `en-US`, transcript tick processing, repeated-speech handling, duplicate suppression, cooldown feedback, voice debug, and manual combat lockout while the mic is active.
+- Added config-controlled voice assist that slows the enemy timer while mic mode is active.
+- Implemented projectiles, damage resolution, cooldowns, Defence, Block, Ultimate, enemy attacks, timer results, pause freezing, button cooldown labels, and combat feedback.
 - Added stage scaling, enemy rotation, four upgrade paths, and win-to-upgrade progression.
 - Added Continue-only win navigation and Retry/Main Menu loss and draw navigation.
 - Preserved dragon, stage, and upgrades on result retry; reset the complete run on Main Menu.
 - Added paused Retry Match, Resume, and Back to Main Menu.
 - Made Ultimate start on full cooldown for every battle and retry.
-- Added relative local assets, Canvas fallbacks, GitHub Pages deployment, and 21 focused flow/input tests.
+- Added relative local assets, Canvas fallbacks, GitHub Pages deployment, and 27 focused flow/input tests.
 
 ## Current Validation
 
@@ -28,7 +29,7 @@
 ## Next Priorities
 
 1. Replace temporary dragon images with licensed production-safe assets.
-2. Add focused tests for damage priority, stage scaling, upgrade formulas, enemy stat formulas, and voice normalization edge cases.
+2. Add focused tests for damage priority, stage scaling, upgrade formulas, and enemy stat formulas.
 3. Visually verify Tutorial, Pause, Dragon Select, and battle screens in target desktop and mobile browsers.
 4. Verify microphone permission behavior and fallback messaging across target browsers.
 5. Tune combat and progression values from playtest feedback without changing the single-file architecture.

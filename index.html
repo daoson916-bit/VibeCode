@@ -64,7 +64,11 @@
             language: "en-US",
             scanIntervalMs: 500,
             scanIntervalSeconds: 0.5,
-            duplicateWindowMs: 650
+            duplicateWindowMs: 650,
+            assist: {
+              enabled: true,
+              enemyIntervalMultiplier: 1.3
+            }
           },
           combatKeys: {
             attack: "q",
@@ -332,6 +336,8 @@
             playerHp: config.maxHp,
             enemyHp: config.maxHp,
             lastHeard: "-",
+            parsedCommand: "-",
+            voiceResult: "-",
             accepted: "-",
             enemyAccepted: "-",
             playerState: "Ready",
@@ -616,6 +622,8 @@
           state.playerHp = playerMaxHp;
           state.enemyHp = enemy.maxHp;
           state.lastHeard = "-";
+          state.parsedCommand = "-";
+          state.voiceResult = "-";
           state.accepted = "-";
           state.enemyAccepted = "-";
           state.playerState = "Ready";
@@ -631,7 +639,7 @@
           initializeCombatCooldowns();
           state.defenceTimer = 0;
           state.blockTimer = 0;
-          state.enemyTimer = rand(enemy.minWait, enemy.maxWait);
+          state.enemyTimer = nextEnemyWait(enemy);
           state.shake = 0;
           state.particles = [];
           state.pendingAttacks = [];
@@ -747,6 +755,8 @@
           state.playerHp = cfg.maxHp;
           state.enemyHp = cfg.maxHp;
           state.lastHeard = "-";
+          state.parsedCommand = "-";
+          state.voiceResult = "-";
           state.accepted = "-";
           state.enemyAccepted = "-";
           state.playerState = "Choose";
@@ -829,12 +839,52 @@
           return `Q Attack | W Defence | E Block | R Skill`;
         }
 
-        function clearVoiceCommandQueue() {
-          voiceCommandQueue.length = 0;
+        function voiceAssistMultiplier() {
+          return micRequested && cfg.voice.assist.enabled ? cfg.voice.assist.enemyIntervalMultiplier : 1;
         }
 
-        function processVoiceTick() {
-          log("voice_tick", { active: micRequested, phase: state.phase });
+        function nextEnemyWait(enemy) {
+          return rand(enemy.minWait, enemy.maxWait);
+        }
+
+        function clearVoiceCommandQueue() {
+          voiceCommandQueue.length = 0;
+          lastVoiceCommand = { signature: "", at: 0 };
+        }
+
+        function queueVoiceTranscript(transcript, signature = normalize(transcript)) {
+          const normalized = normalize(transcript);
+          if (!normalized) return false;
+          voiceCommandQueue.push({ transcript, normalized, signature });
+          state.lastHeard = normalized;
+          return true;
+        }
+
+        function setVoiceDebug(command, result) {
+          state.parsedCommand = command ? command.toUpperCase() : "-";
+          state.voiceResult = result;
+        }
+
+        function processVoiceTick(now = performance.now()) {
+          const queued = voiceCommandQueue.splice(0);
+          if (!queued.length) {
+            log("voice_tick", { active: micRequested, phase: state.phase, queued: 0 });
+            return null;
+          }
+
+          const latest = queued[queued.length - 1];
+          state.lastHeard = latest.normalized;
+          const command = Array.from(new Set(commandsFromSpeech(latest.normalized)))[0] || null;
+
+          if (!command) {
+            setVoiceDebug(null, "Unknown");
+            state.message = "Voice unknown. Say Attack, Defence, Block, Ultimate, or Skill.";
+            log("voice_tick_unknown", { transcript: latest.normalized });
+            return { command: null, result: "Unknown" };
+          }
+
+          const cast = processRecognizedCommand(command, latest.signature, now);
+          return { command, result: state.voiceResult, cast };
         }
 
         function flushVoiceCommandQueue() {
@@ -844,9 +894,12 @@
             return [];
           }
 
-          commands.forEach((command) => useCommand(command, "voice"));
+          commands.forEach((item) => {
+            const command = typeof item === "string" ? item : Array.from(new Set(commandsFromSpeech(item.normalized || item.transcript)))[0];
+            if (command) processRecognizedCommand(command, item.signature || command);
+          });
           if (commands.length) {
-            state.note = `Voice window: ${commands.map((command) => command.toUpperCase()).join(" → ")}`;
+            state.note = "Voice window processed.";
             log("voice_window_executed", { commands });
           }
           return commands;
@@ -868,15 +921,31 @@
         }
 
         function processRecognizedCommand(command, signature = command, now = performance.now()) {
-          if (!micRequested || state.phase !== "playing" || state.paused || !command) return false;
+          if (!command) {
+            setVoiceDebug(null, "Unknown");
+            return false;
+          }
+          if (!micRequested) {
+            setVoiceDebug(command, "Inactive");
+            state.message = "Mic is off. Start mic to use voice commands.";
+            return false;
+          }
+          if (state.phase !== "playing" || state.paused) {
+            setVoiceDebug(command, "Inactive");
+            state.message = state.paused ? "Voice ignored while paused." : "Voice ignored outside battle.";
+            log("voice_inactive_ignored", { command, phase: state.phase, paused: state.paused });
+            return false;
+          }
           const duplicate = signature === lastVoiceCommand.signature && now - lastVoiceCommand.at < cfg.voice.duplicateWindowMs;
           if (duplicate) {
+            setVoiceDebug(command, "Duplicate");
             log("voice_duplicate_ignored", { command });
             return false;
           }
           lastVoiceCommand = { signature, at: now };
           const ready = state.cd[command] <= 0;
           useCommand(command, "voice");
+          setVoiceDebug(command, ready ? "Cast" : "Cooldown");
           state.note = ready
             ? `Voice cast: ${command.toUpperCase()}`
             : `Voice heard ${command.toUpperCase()}; cooldown ${state.cd[command].toFixed(1)}s`;
@@ -1056,7 +1125,7 @@
           state.playerState = state.blockTimer > 0 ? "Block" : state.playerState;
           state.message = "Enemy attack charging. Block before impact.";
           scheduleAttack("enemy", "player", "attack", enemy.damage, enemy.color, 18 + Math.min(8, state.stage - 1));
-          state.enemyTimer = rand(enemy.minWait, enemy.maxWait);
+          state.enemyTimer = nextEnemyWait(enemy);
           log("enemy_attack_cast");
         }
 
@@ -1200,7 +1269,7 @@
           if (state.phase !== "playing") return;
 
           state.time = Math.max(0, state.time - dt);
-          state.enemyTimer -= dt;
+          state.enemyTimer -= dt / voiceAssistMultiplier();
 
           state.pendingAttacks.forEach((attack) => {
             attack.elapsed += dt;
@@ -1240,15 +1309,31 @@
           ctx.textAlign = "left";
         }
 
-        function canvasButton(id, x, y, w, h, label, fill, border, disabled = false) {
-          buttons.push({ id, x, y, w, h, disabled });
+        function canvasButton(id, x, y, w, h, label, fill, border, disabled = false, sublabel = "") {
+          buttons.push({ id, x, y, w, h, disabled, label, sublabel });
           ctx.save();
           rr(x, y, w, h, 18, fill, border);
           ctx.textAlign = "center";
           ctx.fillStyle = disabled ? "#94a3b8" : "#fff4d6";
-          ctx.font = "bold 15px system-ui";
-          ctx.fillText(label, x + w / 2, y + 27);
+          ctx.font = sublabel ? "bold 14px system-ui" : "bold 15px system-ui";
+          ctx.fillText(label, x + w / 2, y + (sublabel ? 21 : 27));
+          if (sublabel) {
+            ctx.fillStyle = disabled ? "#cbd5e1" : "#f6c453";
+            ctx.font = "bold 12px system-ui";
+            ctx.fillText(sublabel, x + w / 2, y + 37);
+          }
           ctx.restore();
+        }
+
+        function drawCombatButton(command, label, layout, fill, border) {
+          const cooldown = state.cd[command];
+          const manualDisabled = manualCombatInputDisabled();
+          const coolingDown = cooldown > 0;
+          const disabled = manualDisabled || coolingDown;
+          const shownFill = disabled ? "#1f2937aa" : fill;
+          const shownBorder = disabled ? "#64748b" : border;
+          const sublabel = coolingDown ? `${cooldown.toFixed(1)}s` : "";
+          canvasButton(command, layout.x, layout.y, layout.w, layout.h, label, shownFill, shownBorder, disabled, sublabel);
         }
 
         function drawControls() {
@@ -1319,12 +1404,11 @@
           }
 
           const controls = cfg.battleLayout.controls;
-          const manualDisabled = manualCombatInputDisabled();
           canvasButton("mic", controls.mic.x, controls.mic.y, controls.mic.w, controls.mic.h, micRequested ? "Stop Mic" : "Start Mic", listening ? "#164e35dd" : micRequested ? "#713f12dd" : "#f6c453dd", "#f6c453");
-          canvasButton("attack", controls.attack.x, controls.attack.y, controls.attack.w, controls.attack.h, "Attack", manualDisabled ? "#1f2937aa" : "#402313dd", manualDisabled ? "#64748b" : "#fb923c", manualDisabled);
-          canvasButton("defence", controls.defence.x, controls.defence.y, controls.defence.w, controls.defence.h, "Defence", manualDisabled ? "#1f2937aa" : "#16324add", manualDisabled ? "#64748b" : "#60a5fa", manualDisabled);
-          canvasButton("block", controls.block.x, controls.block.y, controls.block.w, controls.block.h, "Block", manualDisabled ? "#1f2937aa" : "#3b2b12dd", manualDisabled ? "#64748b" : "#f6c453", manualDisabled);
-          canvasButton("ultimate", controls.ultimate.x, controls.ultimate.y, controls.ultimate.w, controls.ultimate.h, "Ultimate", manualDisabled ? "#1f2937aa" : "#30215bdd", manualDisabled ? "#64748b" : "#a78bfa", manualDisabled);
+          drawCombatButton("attack", "Attack", controls.attack, "#402313dd", "#fb923c");
+          drawCombatButton("defence", "Defence", controls.defence, "#16324add", "#60a5fa");
+          drawCombatButton("block", "Block", controls.block, "#3b2b12dd", "#f6c453");
+          drawCombatButton("ultimate", "Ultimate", controls.ultimate, "#30215bdd", "#a78bfa");
           canvasButton("pauseMatch", controls.pause.x, controls.pause.y, controls.pause.w, controls.pause.h, cfg.flow.labels.pause, "#102a4cdd", "#87d5ff");
 
           ctx.textAlign = "center";
@@ -1700,6 +1784,15 @@
           ctx.textAlign = "left";
         }
 
+        function shortText(value, max = 24) {
+          const text = String(value || "-");
+          return text.length > max ? `${text.slice(0, max - 1)}...` : text;
+        }
+
+        function voiceDebugText() {
+          return `Heard ${shortText(state.lastHeard, 16)} | ${state.parsedCommand} | ${state.voiceResult}`;
+        }
+
         function drawGuardEffect(layout) {
           const blockActive = state.blockTimer > 0;
           const defenceActive = state.defenceTimer > 0;
@@ -1955,7 +2048,7 @@
           ctx.textAlign = "left";
 
           drawCommandPanel(layout.playerCommand, "P1 COMMAND", state.accepted, "left");
-          drawCommandPanel(layout.commandReference, "COMMANDS - ONE FULL WORD", combatKeyHintText());
+          drawCommandPanel(layout.commandReference, "VOICE DEBUG", voiceDebugText());
           drawCommandPanel(layout.enemyCommand, "P2 / AI COMMAND", state.enemyAccepted, "right");
 
           if (state.phase === "result") drawResultOverlay();
@@ -2029,12 +2122,13 @@
                 text: alternative.transcript,
                 normalized: normalize(alternative.transcript),
                 confidence: alternative.confidence,
-                command: commandFromSpeech(alternative.transcript)
+                command: commandFromSpeech(alternative.transcript),
+                commands: commandsFromSpeech(alternative.transcript)
               }));
               const best = alternatives.reduce((selected, alternative) => {
                 if (!selected) return alternative;
-                if (Boolean(alternative.command) !== Boolean(selected.command)) {
-                  return alternative.command ? alternative : selected;
+                if (Boolean(alternative.commands.length) !== Boolean(selected.commands.length)) {
+                  return alternative.commands.length ? alternative : selected;
                 }
                 return alternative.confidence > selected.confidence ? alternative : selected;
               }, null);
@@ -2042,12 +2136,13 @@
 
               if (e.results[i].isFinal) {
                 const now = performance.now();
-                const signature = `${best?.command || "unknown"}:${best?.normalized || ""}`;
+                const signature = `${best?.normalized || "unknown"}:${i}`;
                 const duplicate = signature === lastVoiceCommand.signature && now - lastVoiceCommand.at < cfg.voice.duplicateWindowMs;
-                log("speech_final", { alternatives, command: best?.command || null, duplicate });
+                log("speech_final", { alternatives, commands: best?.commands || [], duplicate });
 
-                if (!duplicate && best?.command && state.phase === "playing") {
-                  processRecognizedCommand(best.command, signature, now);
+                if (!duplicate && best?.normalized) {
+                  queueVoiceTranscript(best.normalized, signature);
+                  processVoiceTick(now);
                 } else if (!duplicate && state.phase === "playing") {
                   state.message = "Not recognized. Say one full word: Attack, Defence, Block, Ultimate, or Skill.";
                 }
@@ -2222,6 +2317,8 @@
           update,
           toggleMic,
           useCommand,
+          queueVoiceTranscript,
+          processVoiceTick,
           processRecognizedCommand,
           commandFromSpeech,
           commandFromKey,

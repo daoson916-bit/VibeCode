@@ -243,6 +243,54 @@ test("valid full-word voice casts immediately when ready and cooldown blocks cas
   assert.equal(app.commandFromSpeech("attack block"), null);
 });
 
+test("processVoiceTick processes valid transcript into one command", () => {
+  const app = loadGame();
+  startBattle(app);
+  app.toggleMic();
+  app.state.cd.attack = 0;
+
+  app.queueVoiceTranscript("attack", "voice:attack");
+  const result = app.processVoiceTick(1000);
+
+  assert.equal(result.command, "attack");
+  assert.equal(result.cast, true);
+  assert.equal(app.state.accepted, "ATTACK");
+  assert.equal(app.state.parsedCommand, "ATTACK");
+  assert.equal(app.state.voiceResult, "Cast");
+});
+
+test("repeated speech attack attack triggers Attack only once", () => {
+  const app = loadGame();
+  startBattle(app);
+  app.toggleMic();
+  app.state.cd.attack = 0;
+
+  app.queueVoiceTranscript("attack attack", "voice:repeat");
+  const result = app.processVoiceTick(1000);
+
+  assert.equal(result.command, "attack");
+  assert.equal(result.cast, true);
+  assert.equal(app.state.accepted, "ATTACK");
+  assert.equal(app.state.pendingAttacks.length, 1);
+  assert.equal(app.state.voiceResult, "Cast");
+});
+
+test("processVoiceTick shows cooldown feedback for cooldown command", () => {
+  const app = loadGame();
+  startBattle(app);
+  app.toggleMic();
+  app.state.cd.attack = 1.8;
+
+  app.queueVoiceTranscript("attack", "voice:cooldown");
+  const result = app.processVoiceTick(1000);
+
+  assert.equal(result.command, "attack");
+  assert.equal(result.cast, false);
+  assert.equal(app.state.parsedCommand, "ATTACK");
+  assert.equal(app.state.voiceResult, "Cooldown");
+  assert.match(app.state.message, /cooldown/i);
+});
+
 test("duplicate voice result does not cast twice", () => {
   const app = loadGame();
   startBattle(app);
@@ -289,6 +337,24 @@ test("buttons and combat keys work again after mic is stopped", () => {
   app.state.cd.attack = 0;
   pressKey(app, "q");
   assert.equal(app.state.accepted, "ATTACK");
+});
+
+test("voice command still works while mic disables manual controls", () => {
+  const app = loadGame();
+  startBattle(app);
+  app.toggleMic();
+  app.state.cd.defence = 0;
+
+  pressKey(app, "w");
+  assert.equal(app.state.accepted, "-");
+
+  app.queueVoiceTranscript("defence", "voice:defence");
+  const result = app.processVoiceTick(1000);
+
+  assert.equal(result.command, "defence");
+  assert.equal(result.cast, true);
+  assert.equal(app.state.accepted, "DEFENCE");
+  assert.ok(app.state.defenceTimer > 0);
 });
 
 test("Q W E R trigger Attack Defence Block and Skill", () => {
@@ -369,6 +435,36 @@ test("pause freezes timer, AI, cooldowns, effects, projectiles, and Frenzy", () 
   assert.equal(app.state.particles[0].life, 0.6);
   assert.equal(app.state.particles[0].x, 10);
   assert.equal(app.state.pendingAttacks[0].elapsed, 0.2);
+});
+
+test("AI timer is slower while mic is on and voice assist is enabled", () => {
+  const app = loadGame();
+  startBattle(app);
+  app.state.enemyTimer = 10;
+  app.update(1);
+  assert.equal(app.state.enemyTimer, 9);
+
+  const assisted = loadGame();
+  startBattle(assisted);
+  assisted.toggleMic();
+  assisted.state.enemyTimer = 10;
+  assisted.update(1);
+
+  assert.equal(assisted.CONFIG.voice.assist.enabled, true);
+  assert.equal(assisted.CONFIG.voice.assist.enemyIntervalMultiplier, 1.3);
+  assert.equal(assisted.state.enemyTimer, 10 - 1 / assisted.CONFIG.voice.assist.enemyIntervalMultiplier);
+});
+
+test("combat buttons show cooldown state on the button", () => {
+  const app = loadGame();
+  startBattle(app);
+  app.state.cd.attack = 2.4;
+  app.draw();
+
+  const attackButton = app.getButtons().find((button) => button.id === "attack");
+  assert.equal(attackButton.disabled, true);
+  assert.equal(attackButton.label, "Attack");
+  assert.equal(attackButton.sublabel, "2.4s");
 });
 
 test("voice and manual combat commands do nothing while paused", () => {

@@ -43,7 +43,7 @@ The main fantasy is voice-command combat, but the game also supports keyboard an
 - Ultimate starts on full cooldown at the beginning of each new or retried battle.
 - Block takes priority over Defence when enemy damage lands.
 - Attack and Ultimate use projectile timing: cast warning, travel, then damage resolution.
-- The AI currently attacks automatically at stage-scaled random intervals.
+- The AI currently attacks automatically at stage-scaled random intervals and is slightly slower while voice assist is active.
 - Reducing the enemy to 0 HP wins. Reaching 0 player HP loses. At timeout, higher HP wins; equal HP draws.
 
 ## Progression
@@ -57,7 +57,7 @@ The main fantasy is voice-command combat, but the game also supports keyboard an
 
 ## Controls
 
-- Voice: Attack, Defence/Defense, Block, Ultimate, or Skill. Voice accepts one full command word.
+- Voice: Attack, Defence/Defense, Block, Ultimate, or Skill. Voice processes the first valid full command word in the latest transcript, so repeated speech such as "attack attack" casts once.
 - Keyboard combat shortcuts: `Q` Attack, `W` Defence, `E` Block, `R` Ultimate/Skill.
 - Keyboard navigation: `Enter` advances supported menu/tutorial/result steps, `Escape` exits tutorial or resumes pause, `P` pauses during battle, number keys choose upgrades.
 - Canvas: microphone toggle, command buttons, menu buttons, tutorial navigation, pause, result, upgrade, and confirmation controls.
@@ -67,7 +67,7 @@ The main fantasy is voice-command combat, but the game also supports keyboard an
 
 - All player-facing UI is drawn inside a 1400 by 620 Canvas.
 - Local arena, dragon, and projectile assets are used with Canvas fallbacks for missing images.
-- Combat feedback includes projectiles, shield/guard effects, particles, screen shake, status labels, cooldown indicators, and accepted-command panels.
+- Combat feedback includes projectiles, shield/guard effects, particles, screen shake, status labels, button cooldown labels, accepted-command panels, and concise voice debug text.
 
 ## Scope Boundaries
 

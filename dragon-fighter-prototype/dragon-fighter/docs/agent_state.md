@@ -91,3 +91,5 @@ Review the pause menu and tutorial screens visually in a browser, then replace t
 - Created `docs/sumup.md` as a slide-ready summary of the current Dragon Fighter prototype.
 - Used the implemented Q/W/E/R shortcut mapping from the current game and latest work log rather than the stale A/D/B/U mapping still present in older GDD text.
 - Updated `docs/gdd.md`, `docs/tdd.md`, and `docs/plan.md` to reflect the current single-file game, optional tutorial, pause flow, Q/W/E/R combat keys, Web Speech behavior, Change Dragon confirmation, and 21-test validation surface.
+- Improved voice combat feedback and balance: command buttons now show cooldown seconds, `processVoiceTick()` processes queued transcripts, repeated speech such as "attack attack" casts once, voice debug shows heard/parsed/result state, and config-controlled voice assist slows enemy timing while mic mode is active.
+- Expanded flow tests to 27 cases covering transcript ticks, repeated speech, cooldown voice feedback, voice assist, and button cooldown labels.
