@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
     <title>Dragon Fighter</title>
     <style>
       html,
@@ -11,11 +11,17 @@
         height: 100%;
         background: #0b1020;
         overflow: hidden;
+        overscroll-behavior: none;
       }
       
       body {
         display: grid;
         place-items: center;
+        position: fixed;
+        inset: 0;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        -webkit-user-select: none;
+        user-select: none;
       }
       
       canvas {
@@ -27,7 +33,11 @@
         box-shadow: 0 20px 70px #0009;
         display: block;
         max-height: 100vh;
+        max-width: 100vw;
         touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
         width: min(1400px, 100vw);
       }
     </style>
@@ -42,6 +52,36 @@
         const svgDataUri = (svg) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
         const cfg = {
           viewport: { width: 1400, height: 620, centerX: 700 },
+          enableResponsiveCanvas: true,
+          preferredAspectRatio: 16 / 9,
+          minLandscapeWidth: 667,
+          minLandscapeHeight: 320,
+          showRotateDeviceMessage: true,
+          rotateDeviceMessage: "Please rotate your device to landscape.",
+          mobileSafePadding: 12,
+          minTouchTargetSize: 44,
+          mobileLandscapeLayout: {
+            controls: {
+              mic: { x: 108, y: 548, w: 160, h: 44 },
+              attack: { x: 421, y: 548, w: 108, h: 44 },
+              defence: { x: 571, y: 548, w: 108, h: 44 },
+              block: { x: 721, y: 548, w: 108, h: 44 },
+              ultimate: { x: 871, y: 548, w: 108, h: 44 },
+              pause: { x: 1130, y: 548, w: 148, h: 44 }
+            }
+          },
+          desktopLayout: {
+            controls: {
+              mic: { x: 108, y: 548, w: 160, h: 44 },
+              attack: { x: 421, y: 548, w: 108, h: 44 },
+              defence: { x: 571, y: 548, w: 108, h: 44 },
+              block: { x: 721, y: 548, w: 108, h: 44 },
+              ultimate: { x: 871, y: 548, w: 108, h: 44 },
+              pause: { x: 1130, y: 548, w: 148, h: 44 }
+            }
+          },
+          enableTouchInput: true,
+          preventPageScroll: true,
           matchTime: 60,
           preMatchCountdownSeconds: 3,
           maxHp: 100,
@@ -62,7 +102,6 @@
           enemyMaxWait: 2.4,
           timerMultiplier: 1,
           micSlowTimeMultiplier: 0.9,
-          micSlowTimeMaxSeconds: 5,
           micSlowTimeFadeInSeconds: 0,
           micSlowTimeFadeOutSeconds: 0.2,
           micPushToTalk: true,
@@ -93,10 +132,10 @@
           micCooldownReductionPercent: 0.1,
           maxVoiceCommandsPerPhrase: 4,
           enableVoiceCommandBonus: true,
-          voiceAttackDamageMultiplier: 1.2,
-          voiceSkillDamageMultiplier: 1.2,
-          voiceDefenceDurationMultiplier: 1.2,
-          voiceBlockDurationMultiplier: 1.2,
+          voiceAttackDamageMultiplier: 1.3,
+          voiceSkillDamageMultiplier: 1.3,
+          voiceDefenceDurationMultiplier: 1.3,
+          voiceBlockDurationMultiplier: 1.3,
           micListeningText: "Dragon is listening...",
           voice: {
             language: "en-US",
@@ -328,6 +367,57 @@
         };
         canvas.width = cfg.viewport.width;
         canvas.height = cfg.viewport.height;
+
+        function getVisualViewportSize() {
+          const visual = window.visualViewport;
+          return {
+            width: Math.max(1, visual?.width || window.innerWidth || cfg.viewport.width),
+            height: Math.max(1, visual?.height || window.innerHeight || cfg.viewport.height)
+          };
+        }
+
+        function applyResponsiveCanvas() {
+          if (!cfg.enableResponsiveCanvas) return;
+          const { width, height } = getVisualViewportSize();
+          const activeLayout = isLikelyTouchDevice() && width >= height ? cfg.mobileLandscapeLayout : cfg.desktopLayout;
+          if (activeLayout?.controls) cfg.battleLayout.controls = activeLayout.controls;
+          const safePadding = cfg.mobileSafePadding;
+          const availableW = Math.max(1, width - safePadding * 2);
+          const availableH = Math.max(1, height - safePadding * 2);
+          const aspect = cfg.viewport.width / cfg.viewport.height;
+          let displayW = availableW;
+          let displayH = displayW / aspect;
+          if (displayH > availableH) {
+            displayH = availableH;
+            displayW = displayH * aspect;
+          }
+          canvas.style.width = `${Math.floor(displayW)}px`;
+          canvas.style.height = `${Math.floor(displayH)}px`;
+        }
+
+        function isLikelyTouchDevice() {
+          return Boolean(window.matchMedia?.("(pointer: coarse)")?.matches || navigator.maxTouchPoints > 0);
+        }
+
+        function shouldShowRotateDeviceMessage() {
+          if (!cfg.showRotateDeviceMessage) return false;
+          const { width, height } = getVisualViewportSize();
+          return isLikelyTouchDevice() && height > width;
+        }
+
+        function preventBrowserTouchDefaults(event) {
+          if (!cfg.preventPageScroll) return;
+          event?.preventDefault?.();
+        }
+
+        if (cfg.preventPageScroll) {
+          document.addEventListener("touchmove", preventBrowserTouchDefaults, { passive: false });
+          document.addEventListener("gesturestart", preventBrowserTouchDefaults, { passive: false });
+        }
+
+        applyResponsiveCanvas();
+        window.addEventListener("resize", applyResponsiveCanvas);
+        window.visualViewport?.addEventListener?.("resize", applyResponsiveCanvas);
       
         function getDragonById(config, dragonId) {
           return config.dragons.find((dragon) => dragon.id === dragonId) || null;
@@ -760,7 +850,7 @@
         }
       
         function pauseMatch() {
-          if (state.phase !== "playing" || state.paused) return;
+          if (state.phase !== "playing" || state.paused || combatCountdownActive()) return;
           stopMicListening("pause");
           state.paused = true;
           state.pauseStartedAt = performance.now();
@@ -1060,6 +1150,10 @@
         function micSlowTimeActive() {
           return state.phase === "playing" && state.countdownTimer <= 0 && state.micListening;
         }
+
+        function combatCountdownActive() {
+          return state.phase === "playing" && state.countdownTimer > 0;
+        }
       
         function gameplayMultiplier() {
           return cfg.timerMultiplier * (micSlowTimeActive() ? cfg.micSlowTimeMultiplier : 1);
@@ -1104,10 +1198,6 @@
           if (!state.micListening) return;
           if (state.phase !== "playing") return;
           state.micSlowTimeElapsed += rawDt;
-          if (state.micSlowTimeElapsed >= cfg.micSlowTimeMaxSeconds) {
-            state.note = "Mic timed out. Time restored.";
-            stopMicListening("timeout");
-          }
         }
       
         function nextEnemyWait(enemy) {
@@ -1240,7 +1330,7 @@
         }
       
         function manualCombatInputDisabled() {
-          return micRequested || state.paused;
+          return micRequested || state.paused || combatCountdownActive();
         }
       
         function applyMicCooldownReduction(usedCommand) {
@@ -1477,6 +1567,12 @@
         function startMicHold() {
           if (!SpeechRecognition) {
             state.note = "This browser does not support Web Speech API. Use canvas buttons or Q/W/E/R.";
+            return false;
+          }
+
+          if (combatCountdownActive()) {
+            state.message = `Get ready: ${Math.ceil(state.countdownTimer)}`;
+            state.note = "Combat starts after the countdown.";
             return false;
           }
       
@@ -1814,12 +1910,23 @@
           }
       
           const controls = cfg.battleLayout.controls;
-          canvasButton("mic", controls.mic.x, controls.mic.y, controls.mic.w, controls.mic.h, micRequested ? "Hold Listening" : "Hold Mic", state.micListening ? "#164e35dd" : "#064e3bdd", state.micListening ? "#f6c453" : "#34d399");
+          const countdownDisabled = combatCountdownActive();
+          canvasButton(
+            "mic",
+            controls.mic.x,
+            controls.mic.y,
+            controls.mic.w,
+            controls.mic.h,
+            countdownDisabled ? "Get Ready" : micRequested ? "Hold Listening" : "Hold Mic",
+            countdownDisabled ? "#1f2937aa" : state.micListening ? "#164e35dd" : "#064e3bdd",
+            countdownDisabled ? "#64748b" : state.micListening ? "#f6c453" : "#34d399",
+            countdownDisabled
+          );
           drawCombatButton("attack", "Attack", controls.attack, "#402313dd", "#fb923c");
           drawCombatButton("defence", "Defense", controls.defence, "#16324add", "#60a5fa");
           drawCombatButton("block", "Block", controls.block, "#3b2b12dd", "#f6c453");
           drawCombatButton("ultimate", "Ultimate", controls.ultimate, "#30215bdd", "#a78bfa");
-          canvasButton("pauseMatch", controls.pause.x, controls.pause.y, controls.pause.w, controls.pause.h, cfg.flow.labels.pause, "#102a4cdd", "#87d5ff");
+          canvasButton("pauseMatch", controls.pause.x, controls.pause.y, controls.pause.w, controls.pause.h, cfg.flow.labels.pause, countdownDisabled ? "#1f2937aa" : "#102a4cdd", countdownDisabled ? "#64748b" : "#87d5ff", countdownDisabled);
       
           ctx.textAlign = "center";
           ctx.fillStyle = "#cbd5e1";
@@ -2442,8 +2549,29 @@
           ctx.ellipse(centerX, 350, 580, 122, 0, 0, Math.PI * 2);
           ctx.stroke();
         }
+
+        function drawRotateDeviceMessage() {
+          ctx.save();
+          const { width, height, centerX } = cfg.viewport;
+          ctx.fillStyle = "#020617";
+          ctx.fillRect(0, 0, width, height);
+          rr(centerX - 330, height / 2 - 90, 660, 180, 24, "#07101de8", "#34d399aa");
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#fff4d6";
+          ctx.font = "bold 34px system-ui";
+          ctx.fillText(cfg.rotateDeviceMessage, centerX, height / 2 - 12);
+          ctx.fillStyle = "#cbd5e1";
+          ctx.font = "18px system-ui";
+          ctx.fillText("Landscape mode keeps the arena controls readable.", centerX, height / 2 + 34);
+          ctx.restore();
+        }
       
         function draw() {
+          if (shouldShowRotateDeviceMessage()) {
+            buttons.length = 0;
+            drawRotateDeviceMessage();
+            return;
+          }
           if (state.phase === "tutorial") {
             drawTutorial();
             return;
@@ -2654,26 +2782,37 @@
           checkMicPermissionOnStart();
         }
       
-        function getCanvasPointerButton(e) {
+        function screenToLogicalPoint(screenX, screenY) {
           const rect = canvas.getBoundingClientRect();
           const scaleX = canvas.width / rect.width;
           const scaleY = canvas.height / rect.height;
-          const x = (e.clientX - rect.left) * scaleX;
-          const y = (e.clientY - rect.top) * scaleY;
+          return {
+            x: (screenX - rect.left) * scaleX,
+            y: (screenY - rect.top) * scaleY
+          };
+        }
+
+        function getCanvasPointerButton(e) {
+          if (shouldShowRotateDeviceMessage()) return null;
+          const { x, y } = screenToLogicalPoint(e.clientX, e.clientY);
           return buttons.find((item) => x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h);
         }
       
         canvas.addEventListener("pointerdown", (e) => {
+          preventBrowserTouchDefaults(e);
           const button = getCanvasPointerButton(e);
           if (!button || button.disabled || button.id !== "mic") return;
+          canvas.setPointerCapture?.(e.pointerId);
           micPointerHeld = startMicHold();
         });
       
         canvas.addEventListener("pointerup", (e) => {
+          preventBrowserTouchDefaults(e);
           const button = getCanvasPointerButton(e);
       
           if (micPointerHeld) {
             micPointerHeld = false;
+            canvas.releasePointerCapture?.(e.pointerId);
             stopMicHold();
             return;
           }
@@ -2759,9 +2898,11 @@
         });
       
         ["pointercancel", "pointerleave"].forEach((type) => {
-          canvas.addEventListener(type, () => {
+          canvas.addEventListener(type, (e) => {
+            preventBrowserTouchDefaults(e);
             if (!micPointerHeld) return;
             micPointerHeld = false;
+            canvas.releasePointerCapture?.(e.pointerId);
             stopMicHold();
           });
         });
@@ -2853,6 +2994,9 @@
           gameplayMultiplier,
           micSlowTimeActive,
           manualCombatInputDisabled,
+          applyResponsiveCanvas,
+          screenToLogicalPoint,
+          shouldShowRotateDeviceMessage,
           getRecognition: () => recognition,
           getMicPermissionState: () => state.micPermissionState,
           getSfxState: () => ({ isCommandSfxPlaying, currentCommandSfxName }),

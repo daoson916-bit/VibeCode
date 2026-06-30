@@ -10,8 +10,8 @@ function loadGame() {
     ? fs.readFileSync(scriptSrc, "utf8")
     : html.match(/<script>([\s\S]*?)<\/script>/)[1];
   const intervals = [];
-  const keyHandlers = [];
-  const pointerHandlers = [];
+  const keyHandlers = { keydown: [], keyup: [] };
+  const pointerHandlers = {};
   const textCalls = [];
   const timeouts = [];
   let permissionState = "granted";
@@ -37,17 +37,33 @@ function loadGame() {
       return true;
     }
   });
+  let canvasRect = { left: 0, top: 0, width: 1400, height: 620 };
   const canvas = {
     addEventListener(type, handler) {
-      if (type === "pointerup") pointerHandlers.push(handler);
+      if (!pointerHandlers[type]) pointerHandlers[type] = [];
+      pointerHandlers[type].push(handler);
     },
-    getBoundingClientRect: () => ({ left: 0, top: 0, width: 1400, height: 620 }),
+    getBoundingClientRect: () => canvasRect,
     getContext: () => context2d,
+    setPointerCapture() {},
+    releasePointerCapture() {},
     style: {}
   };
+  let viewport = { width: 1400, height: 620 };
+  let touchDevice = false;
   const window = {
+    innerWidth: viewport.width,
+    innerHeight: viewport.height,
     addEventListener(type, handler) {
-      if (type === "keydown") keyHandlers.push(handler);
+      if (keyHandlers[type]) keyHandlers[type].push(handler);
+    },
+    matchMedia() {
+      return { matches: touchDevice };
+    },
+    visualViewport: {
+      get width() { return viewport.width; },
+      get height() { return viewport.height; },
+      addEventListener() {}
     }
   };
   class ImageStub {
@@ -91,6 +107,9 @@ function loadGame() {
     }
   }
   const navigator = {
+    get maxTouchPoints() {
+      return touchDevice ? 5 : 0;
+    },
     permissions: {
       async query() {
         return { state: permissionState };
@@ -115,7 +134,7 @@ function loadGame() {
       if (timeout) timeout.cleared = true;
     },
     console,
-    document: { getElementById: () => canvas },
+    document: { getElementById: () => canvas, addEventListener() {} },
     Image: ImageStub,
     Math,
     navigator,
@@ -157,6 +176,23 @@ function loadGame() {
     setPermissionState: (value) => { permissionState = value; },
     setGetUserMediaFailure: (value) => { failGetUserMedia = value; },
     getMediaRequestCount: () => mediaRequestCount,
+    setCanvasRect: (rect) => { canvasRect = { ...canvasRect, ...rect }; },
+    setViewport: (width, height) => {
+      viewport = { width, height };
+      window.innerWidth = width;
+      window.innerHeight = height;
+    },
+    setTouchDevice: (value) => { touchDevice = value; },
+    firePointer: (type, event) => {
+      const payload = {
+        clientX: 0,
+        clientY: 0,
+        pointerId: 1,
+        preventDefault() {},
+        ...event
+      };
+      (pointerHandlers[type] || []).forEach((handler) => handler(payload));
+    },
     runTimeouts: () => {
       timeouts.filter((timeout) => !timeout.cleared).forEach((timeout) => {
         timeout.cleared = true;
@@ -176,7 +212,7 @@ function startBattle(app, dragonId = "ember") {
 }
 
 function pressKey(app, key) {
-  app.__test.keyHandlers[0]({ key });
+  app.__test.keyHandlers.keydown[0]({ key });
 }
 
 test("game starts at Main Menu and tutorial can be opened before Play Now", () => {
@@ -313,10 +349,7 @@ test("voice recognition is English and uses the configured 0.5s interval", () =>
 
   assert.equal(app.CONFIG.voice.language, "en-US");
   assert.equal(app.getRecognition(), null);
-  app.completeTutorial();
-  app.playNow();
-  app.state.selectedDragonId = "ember";
-  app.confirmDragon();
+  startBattle(app);
   app.toggleMic();
 
   const recognition = app.getRecognition();
@@ -432,6 +465,111 @@ test("battle waits for a 3 second countdown before match timers run", () => {
   assert.equal(app.state.time, 59);
   assert.equal(app.state.enemyTimer, 4);
   assert.equal(app.state.cd.attack, 0);
+});
+
+test("countdown blocks combat, mic, and pause interactions before battle starts", () => {
+  const app = loadGame();
+  app.completeTutorial();
+  app.playNow();
+  app.state.selectedDragonId = "ember";
+  app.confirmDragon();
+  app.draw();
+
+  assert.equal(app.state.countdownTimer, app.CONFIG.preMatchCountdownSeconds);
+  assert.equal(app.manualCombatInputDisabled(), true);
+
+  const micButton = app.getButtons().find((button) => button.id === "mic");
+  const attackButton = app.getButtons().find((button) => button.id === "attack");
+  const pauseButton = app.getButtons().find((button) => button.id === "pauseMatch");
+  assert.equal(micButton.disabled, true);
+  assert.equal(attackButton.disabled, true);
+  assert.equal(pauseButton.disabled, true);
+
+  assert.equal(app.toggleMic(), false);
+  assert.equal(app.state.micListening, false);
+  assert.equal(app.getRecognition(), null);
+
+  app.state.cd.attack = 0;
+  pressKey(app, "q");
+  app.useCommand("attack", "canvas");
+  assert.equal(app.state.accepted, "-");
+  assert.equal(app.state.pendingAttacks.length, 0);
+
+  app.pauseMatch();
+  assert.equal(app.state.paused, false);
+});
+
+test("pointer coordinate conversion works after canvas scaling", () => {
+  const app = loadGame();
+  app.__test.setCanvasRect({ left: 10, top: 20, width: 700, height: 310 });
+
+  const point = app.screenToLogicalPoint(360, 175);
+
+  assert.equal(point.x, 700);
+  assert.equal(point.y, 310);
+});
+
+test("mobile portrait shows rotate message and landscape shows canvas gameplay UI", () => {
+  const portrait = loadGame();
+  portrait.__test.setTouchDevice(true);
+  portrait.__test.setViewport(390, 844);
+  portrait.applyResponsiveCanvas();
+  portrait.__test.textCalls.length = 0;
+  portrait.draw();
+
+  assert.equal(portrait.shouldShowRotateDeviceMessage(), true);
+  assert.ok(portrait.__test.textCalls.some((call) => call[0] === portrait.CONFIG.rotateDeviceMessage));
+  assert.equal(portrait.getButtons().length, 0);
+
+  const landscape = loadGame();
+  landscape.__test.setTouchDevice(true);
+  landscape.__test.setViewport(844, 390);
+  landscape.applyResponsiveCanvas();
+  startBattle(landscape);
+  landscape.draw();
+
+  assert.equal(landscape.shouldShowRotateDeviceMessage(), false);
+  assert.ok(landscape.getButtons().some((button) => button.id === "mic"));
+  assert.ok(landscape.getButtons().some((button) => button.id === "attack"));
+});
+
+test("touch hold on mic starts and touch end or cancel stops listening", () => {
+  const app = loadGame();
+  app.__test.setTouchDevice(true);
+  startBattle(app);
+  app.draw();
+  const mic = app.getButtons().find((button) => button.id === "mic");
+
+  app.__test.firePointer("pointerdown", { clientX: mic.x + mic.w / 2, clientY: mic.y + mic.h / 2 });
+  assert.equal(app.state.micListening, true);
+  assert.equal(app.micSlowTimeActive(), true);
+
+  app.__test.firePointer("pointerup", { clientX: mic.x + mic.w / 2, clientY: mic.y + mic.h / 2 });
+  assert.equal(app.state.micListening, false);
+  assert.equal(app.micSlowTimeActive(), false);
+
+  app.__test.firePointer("pointerdown", { clientX: mic.x + mic.w / 2, clientY: mic.y + mic.h / 2 });
+  assert.equal(app.state.micListening, true);
+  app.__test.firePointer("pointercancel", { clientX: mic.x + mic.w / 2, clientY: mic.y + mic.h / 2 });
+  assert.equal(app.state.micListening, false);
+  assert.equal(app.micSlowTimeActive(), false);
+});
+
+test("scaled touch hit region executes normal command once", () => {
+  const app = loadGame();
+  app.__test.setTouchDevice(true);
+  app.__test.setCanvasRect({ left: 10, top: 20, width: 700, height: 310 });
+  startBattle(app);
+  app.draw();
+  const attack = app.getButtons().find((button) => button.id === "attack");
+  app.state.cd.attack = 0;
+  const screenX = 10 + (attack.x + attack.w / 2) * 0.5;
+  const screenY = 20 + (attack.y + attack.h / 2) * 0.5;
+
+  app.__test.firePointer("pointerup", { clientX: screenX, clientY: screenY });
+
+  assert.equal(app.state.accepted, "ATTACK");
+  assert.equal(app.state.pendingAttacks.length, 1);
 });
 
 test("slow-time starts immediately when mic begins listening", () => {
@@ -889,12 +1027,18 @@ test("AI timer is slower while mic listening is active", () => {
   assert.equal(assisted.state.enemyTimer, 10 - assisted.CONFIG.micSlowTimeMultiplier);
 });
 
-test("mic timeout turns off listening and restores normal speed", () => {
+test("mic stays active without timeout until push-to-talk is released", () => {
   const app = loadGame();
   startBattle(app);
   app.toggleMic();
 
-  app.update(app.CONFIG.micSlowTimeMaxSeconds);
+  app.update(30);
+
+  assert.equal(app.state.micListening, true);
+  assert.equal(app.micSlowTimeActive(), true);
+  assert.equal(app.gameplayMultiplier(), app.CONFIG.timerMultiplier * app.CONFIG.micSlowTimeMultiplier);
+
+  app.stopMicHold();
 
   assert.equal(app.state.micListening, false);
   assert.equal(app.micSlowTimeActive(), false);
