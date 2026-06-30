@@ -72,6 +72,7 @@ function startBattle(app, dragonId = "ember") {
   app.playNow();
   app.state.selectedDragonId = dragonId;
   app.confirmDragon();
+  app.state.countdownTimer = 0;
 }
 
 function pressKey(app, key) {
@@ -244,6 +245,37 @@ test("valid full-word voice casts immediately when ready and cooldown blocks cas
   assert.match(app.state.message, /cooldown/i);
   assert.equal(app.state.micListening, false);
   assert.equal(app.commandFromSpeech("attack block"), null);
+});
+
+test("battle waits for a 3 second countdown before match timers run", () => {
+  const app = loadGame();
+  app.completeTutorial();
+  app.playNow();
+  app.state.selectedDragonId = "ember";
+  app.confirmDragon();
+
+  app.state.time = 60;
+  app.state.enemyTimer = 5;
+  app.state.cd.attack = 1;
+
+  assert.equal(app.state.countdownTimer, app.CONFIG.preMatchCountdownSeconds);
+
+  app.update(1);
+  assert.equal(app.state.countdownTimer, app.CONFIG.preMatchCountdownSeconds - 1);
+  assert.equal(app.state.time, 60);
+  assert.equal(app.state.enemyTimer, 5);
+  assert.equal(app.state.cd.attack, 1);
+
+  app.update(2.1);
+  assert.equal(app.state.countdownTimer, 0);
+  assert.equal(app.state.time, 60);
+  assert.equal(app.state.enemyTimer, 5);
+  assert.equal(app.state.cd.attack, 1);
+
+  app.update(1);
+  assert.equal(app.state.time, 59);
+  assert.equal(app.state.enemyTimer, 4);
+  assert.equal(app.state.cd.attack, 0);
 });
 
 test("slow-time starts immediately when mic begins listening", () => {

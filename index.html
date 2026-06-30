@@ -44,6 +44,7 @@
         const cfg = {
           viewport: { width: 1400, height: 620, centerX: 700 },
           matchTime: 60,
+          preMatchCountdownSeconds: 3,
           maxHp: 100,
           baseAttackDamage: 12,
           ultimateDamage: 35,
@@ -350,6 +351,7 @@
             paused: false,
             micListening: false,
             micSlowTimeElapsed: 0,
+            countdownTimer: 0,
             pauseStartedAt: 0,
             pauseRenderNow: 0,
             frenzyTimer: 0,
@@ -640,6 +642,7 @@
           state.pauseStartedAt = 0;
           state.pauseRenderNow = 0;
           state.frenzyTimer = 0;
+          state.countdownTimer = cfg.preMatchCountdownSeconds;
           initializeCombatCooldowns();
           state.defenceTimer = 0;
           state.blockTimer = 0;
@@ -850,7 +853,7 @@
         }
 
         function micSlowTimeActive() {
-          return state.phase === "playing" && state.micListening;
+          return state.phase === "playing" && state.countdownTimer <= 0 && state.micListening;
         }
 
         function gameplayMultiplier() {
@@ -970,13 +973,19 @@
           }
           if (!micRequested) {
             setVoiceDebug(command, "Inactive");
-            state.message = "Mic is off. Start mic to use voice commands.";
+            state.message = "Mic is off. Press Listen Command to use voice commands.";
             return false;
           }
           if (state.phase !== "playing" || state.paused) {
             setVoiceDebug(command, "Inactive");
             state.message = state.paused ? "Voice ignored while paused." : "Voice ignored outside battle.";
             log("voice_inactive_ignored", { command, phase: state.phase, paused: state.paused });
+            return false;
+          }
+          if (state.countdownTimer > 0) {
+            setVoiceDebug(command, "Inactive");
+            state.message = "Get ready. Voice commands start after countdown.";
+            log("voice_countdown_ignored", { command, countdownTimer: state.countdownTimer });
             return false;
           }
           const duplicate = signature === lastVoiceCommand.signature && now - lastVoiceCommand.at < cfg.voice.duplicateWindowMs;
@@ -1076,6 +1085,12 @@
             log("paused_command_ignored", { cmd, source });
             return;
           }
+          if (state.countdownTimer > 0) {
+            state.message = `Get ready: ${Math.ceil(state.countdownTimer)}`;
+            state.note = "Combat starts after the countdown.";
+            log("countdown_command_ignored", { cmd, source, countdownTimer: state.countdownTimer });
+            return;
+          }
           if (source !== "voice" && manualCombatInputDisabled()) {
             state.message = "Manual combat controls are disabled while mic is on.";
             state.note = "Use voice commands or stop the mic to use buttons and keys.";
@@ -1147,7 +1162,7 @@
 
           if (micRequested) {
             stopMicListening("manual");
-            state.note = "Mic is off. Press Start Mic to listen again.";
+            state.note = "Mic is off. Press Listen Command to listen again.";
             return;
           }
 
@@ -1286,6 +1301,14 @@
           updateMicSlowTime(rawDt);
           if (state.paused) return;
           if (state.shake > 0) state.shake -= rawDt;
+          if (state.phase === "playing" && state.countdownTimer > 0) {
+            state.countdownTimer = Math.max(0, state.countdownTimer - rawDt);
+            if (state.countdownTimer === 0) {
+              state.message = "Fight!";
+              state.note = "Battle timer is running.";
+            }
+            return;
+          }
           if (state.frenzyTimer > 0) state.frenzyTimer = Math.max(0, state.frenzyTimer - dt);
           ["attack", "defence", "block", "ultimate"].forEach((k) => {
             state.cd[k] = Math.max(0, state.cd[k] - dt);
@@ -1358,8 +1381,8 @@
           rr(x, y, w, h, 18, fill, border);
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillStyle = disabled ? "#94a3b8" : "#fff4d6";
-          ctx.font = sublabel ? "bold 14px system-ui" : "bold 15px system-ui";
+          ctx.fillStyle = disabled ? "#94a3b8" : "#ffffff";
+          ctx.font = sublabel ? "bold 15px system-ui" : "bold 17px system-ui";
           ctx.fillText(label, x + w / 2, y + h / 2 + (sublabel ? -7 : 0));
           if (sublabel) {
             ctx.fillStyle = disabled ? "#cbd5e1" : "#f6c453";
@@ -1372,8 +1395,9 @@
         function drawCombatButton(command, label, layout, fill, border) {
           const cooldown = state.cd[command];
           const manualDisabled = manualCombatInputDisabled();
+          const countdownDisabled = state.phase === "playing" && state.countdownTimer > 0;
           const coolingDown = cooldown > 0;
-          const disabled = manualDisabled || coolingDown;
+          const disabled = manualDisabled || countdownDisabled || coolingDown;
           const shownFill = disabled ? "#1f2937aa" : fill;
           const shownBorder = disabled ? "#64748b" : border;
           const sublabel = coolingDown ? `${cooldown.toFixed(1)}s` : "";
@@ -1395,7 +1419,7 @@
             if (lastStep) {
               canvasButton("tutorialDone", tutorial.doneButton.x, tutorial.doneButton.y, tutorial.doneButton.w, tutorial.doneButton.h, "Done", "#164e35dd", "#34d399");
             } else {
-              canvasButton("tutorialNext", tutorial.nextButton.x, tutorial.nextButton.y, tutorial.nextButton.w, tutorial.nextButton.h, "Next", "#f6c453dd", "#fff4d6");
+              canvasButton("tutorialNext", tutorial.nextButton.x, tutorial.nextButton.y, tutorial.nextButton.w, tutorial.nextButton.h, "Next", "#064e3bdd", "#34d399");
             }
             return;
           }
@@ -1404,14 +1428,14 @@
             buttons.length = 0;
             const play = cfg.flow.menu.playButton;
             const tutorial = cfg.flow.menu.tutorialButton;
-            canvasButton("playNow", play.x, play.y, play.w, play.h, cfg.flow.labels.playNow, "#f6c453dd", "#fff4d6");
+            canvasButton("playNow", play.x, play.y, play.w, play.h, cfg.flow.labels.playNow, "#064e3bdd", "#34d399");
             canvasButton("openTutorial", tutorial.x, tutorial.y, tutorial.w, tutorial.h, cfg.flow.labels.tutorial, "#102a4cdd", "#87d5ff");
             return;
           }
 
           if (state.phase === "select") {
             const select = cfg.dragonSelect;
-            canvasButton("confirmDragon", select.confirm.x, select.confirm.y, select.confirm.w, select.confirm.h, "Confirm Dragon", state.selectedDragonId ? "#f6c453dd" : "#475569cc", state.selectedDragonId ? "#f6c453" : "#64748b");
+            canvasButton("confirmDragon", select.confirm.x, select.confirm.y, select.confirm.w, select.confirm.h, "Confirm Dragon", state.selectedDragonId ? "#064e3bdd" : "#475569cc", state.selectedDragonId ? "#34d399" : "#64748b");
             ctx.textAlign = "center";
             ctx.fillStyle = "#cbd5e1";
             ctx.font = "14px system-ui";
@@ -1448,7 +1472,7 @@
           }
 
           const controls = cfg.battleLayout.controls;
-          canvasButton("mic", controls.mic.x, controls.mic.y, controls.mic.w, controls.mic.h, micRequested ? "Stop Mic" : "Start Mic", listening ? "#164e35dd" : micRequested ? "#713f12dd" : "#f6c453dd", "#f6c453");
+          canvasButton("mic", controls.mic.x, controls.mic.y, controls.mic.w, controls.mic.h, micRequested ? "Execute Command" : "Listen Command", listening ? "#164e35dd" : micRequested ? "#713f12dd" : "#064e3bdd", micRequested ? "#f6c453" : "#34d399");
           drawCombatButton("attack", "Attack", controls.attack, "#402313dd", "#fb923c");
           drawCombatButton("defence", "Defense", controls.defence, "#16324add", "#60a5fa");
           drawCombatButton("block", "Block", controls.block, "#3b2b12dd", "#f6c453");
@@ -1850,6 +1874,23 @@
           ctx.restore();
         }
 
+        function drawCountdownOverlay() {
+          if (state.phase !== "playing" || state.countdownTimer <= 0 || state.paused) return;
+          const count = Math.ceil(state.countdownTimer);
+          ctx.save();
+          ctx.fillStyle = "#02061766";
+          ctx.fillRect(0, 0, cfg.viewport.width, cfg.viewport.height);
+          rr(cfg.viewport.centerX - 145, 205, 290, 156, 24, "#07101de6", "#34d399aa");
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#bbf7d0";
+          ctx.font = "bold 18px system-ui";
+          ctx.fillText("GET READY", cfg.viewport.centerX, 244);
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 72px system-ui";
+          ctx.fillText(String(count), cfg.viewport.centerX, 315);
+          ctx.restore();
+        }
+
         function drawGuardEffect(layout) {
           const blockActive = state.blockTimer > 0;
           const defenceActive = state.defenceTimer > 0;
@@ -2096,7 +2137,7 @@
 
           ctx.fillStyle = listening ? "#34d399" : micRequested ? "#f6c453" : "#fca5a5";
           ctx.font = "bold 16px system-ui";
-          ctx.fillText(micSlowTimeActive() ? "Listening... Time slowed" : listening ? "Mic listening - 0.5s check" : micRequested ? "Mic starting" : "Mic off", layout.mic.x, layout.mic.y);
+          ctx.fillText(micSlowTimeActive() ? "Listening... Time slowed" : listening ? "Listening for command" : micRequested ? "Preparing command listener" : "Command listener off", layout.mic.x, layout.mic.y);
 
           rr(layout.message.x, layout.message.y, layout.message.w, layout.message.h, 18, "#07101dd9", "#f6c45366");
           ctx.textAlign = "center";
@@ -2113,6 +2154,7 @@
           if (state.paused) drawPauseOverlay();
 
           drawControls();
+          drawCountdownOverlay();
 
           ctx.restore();
         }
@@ -2155,7 +2197,7 @@
             micRequested = false;
             stopVoiceScanner();
             if (!speechError && !["command", "timeout"].includes(reason) && !String(reason).startsWith("error:")) {
-              state.note = "Mic is off. Press Start Mic to listen again.";
+              state.note = "Mic is off. Press Listen Command to listen again.";
             }
             micStopReason = "";
             log("mic_end");
@@ -2165,7 +2207,7 @@
             speechError = e.error === "no-speech"
               ? "No speech heard. Time restored."
               : e.error === "aborted" && !micRequested
-                ? "Mic is off. Press Start Mic to listen again."
+                ? "Mic is off. Press Listen Command to listen again."
                 : `Mic error: ${e.error}. Use canvas buttons or Q/W/E/R.`;
             stopMicListening(`error:${e.error}`);
             state.note = speechError;
