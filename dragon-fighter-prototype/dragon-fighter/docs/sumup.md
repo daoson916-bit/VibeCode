@@ -11,15 +11,15 @@ The game is designed around fast command decisions rather than movement. Players
 - Genre: 2D dragon dueling / command combat prototype
 - Platform: Web browser
 - Main technology: HTML5 Canvas and JavaScript
-- Match length: 60 seconds
+- Match length: 60 seconds after a 3 second pre-match countdown
 - Player goal: defeat the enemy dragon before time runs out
 - Progression goal: win battles, choose upgrades, and survive harder stages
 
 ## 3. Design Pillars
 
 - **Voice first, not voice only:** voice commands support the main fantasy, while keyboard and Canvas buttons keep the game reliable.
-- **Decision-based combat:** the player focuses on timing Attack, Defence, Block, and Ultimate instead of moving around.
-- **Readable feedback:** HP, cooldowns, commands, projectiles, states, and results are visible in one arena view.
+- **Decision-based combat:** the player focuses on timing Attack, Defense, Block, and Ultimate instead of moving around.
+- **Readable feedback:** HP, cooldowns, commands, projectiles, states, countdown, and results are visible in one arena view.
 - **Short progression loop:** each victory gives one upgrade and leads to a stronger opponent.
 
 ## 4. Player Flow
@@ -28,36 +28,35 @@ The game is designed around fast command decisions rather than movement. Players
 2. Open Tutorial if needed.
 3. Press Play Now.
 4. Choose one dragon: Ember, Tide, or Moss.
-5. Fight an AI opponent in the arena.
-6. On victory, continue to the upgrade screen.
-7. Pick one upgrade and advance to the next stage.
-8. On loss or draw, retry the match or return to the Main Menu.
+5. Watch the 3 second countdown.
+6. Fight an AI opponent in the arena.
+7. On victory, continue to the upgrade screen.
+8. Pick one upgrade and advance to the next stage.
+9. On loss or draw, retry the match or return to the Main Menu.
 
 ## 5. Dragon Choices
 
 | Dragon | Role | Gameplay Style |
 | --- | --- | --- |
-| Ember | Attack Focus | Higher Attack damage, shorter Defence duration |
-| Tide | Defence Focus | Longer Defence duration, lower Attack damage |
-| Moss | Balanced | Normal Attack and Defence, slightly faster Skill cooldown |
-
-These choices give players different combat rhythms without adding complex movement or character builds.
+| Ember | Attack Focus | Higher Attack damage, shorter Defense duration |
+| Tide | Defense Focus | Longer Defense duration, lower Attack damage |
+| Moss | Balanced | Normal Attack and Defense, slightly faster Ultimate cooldown |
 
 ## 6. Combat Commands
 
 | Command | Effect |
 | --- | --- |
 | Attack | Deals standard damage with a short cooldown |
-| Defence | Reduces incoming damage for a limited time |
+| Defense | Reduces incoming damage for a limited time |
 | Block | Prevents all incoming damage for a short window |
-| Ultimate / Skill | Deals high damage with a longer cooldown |
+| Ultimate | Deals high damage with a longer cooldown |
 
 Ultimate starts on full cooldown at the beginning of every battle, so players cannot open with a heavy burst.
 
 ## 7. Input Methods
 
-- **Voice:** say Attack, Defence/Defense, Block, Ultimate, or Skill.
-- **Keyboard:** Q = Attack, W = Defence, E = Block, R = Ultimate/Skill.
+- **Voice:** press `Listen Command`, say Attack, Defense, Block, or Ultimate, then the game stops listening and executes the command.
+- **Keyboard:** Q = Attack, W = Defense, E = Block, R = Ultimate.
 - **Canvas buttons:** tap/click the command buttons inside the game screen.
 
 All input methods use the same combat logic, cooldown rules, and game phase checks.
@@ -65,12 +64,13 @@ All input methods use the same combat logic, cooldown rules, and game phase chec
 ## 8. Battle Rules
 
 - Player base HP: 100
-- Match duration: 60 seconds
+- Match duration: 60 seconds after countdown
 - Attack base damage: 12
 - Ultimate base damage: 35
-- Defence reduces incoming damage by 50%
-- Block fully prevents damage and has priority over Defence
+- Defense reduces incoming damage by 50%
+- Block fully prevents damage and has priority over Defense
 - The AI attacks automatically at stage-scaled intervals
+- Mic listening slows gameplay time during active battle
 - If time expires, the dragon with higher HP wins
 - Equal HP at timeout creates a draw
 
@@ -82,7 +82,7 @@ After each win, the player chooses one upgrade:
 | --- | --- |
 | Power | Increases Attack and Ultimate damage |
 | Vitality | Increases maximum HP |
-| Guard | Extends Defence and reduces Block cooldown |
+| Guard | Extends Defense and reduces Block cooldown |
 | Focus | Reduces Attack and Ultimate cooldowns |
 
 Later stages increase enemy HP, enemy damage, and enemy attack pressure. Enemy identities rotate through a configured roster.
@@ -90,13 +90,14 @@ Later stages increase enemy HP, enemy damage, and enemy attack pressure. Enemy i
 ## 10. Current Features Implemented
 
 - Single-file playable prototype in the root `index.html`
-- Canvas Main Menu, Tutorial, Dragon Select, Battle, Result, Pause, and Upgrade screens
+- Canvas Main Menu, Tutorial, Dragon Select, Countdown, Battle, Result, Pause, and Upgrade screens
 - Three dragon options with different modifiers
 - Voice recognition support through the Web Speech API
 - Keyboard and Canvas fallback controls
-- Cooldowns, projectiles, damage timing, Defence, Block, and Ultimate logic
+- Cooldowns, projectiles, damage timing, Defense, Block, and Ultimate logic
 - Stage scaling, enemy rotation, and four upgrade paths
 - Retry, Main Menu reset, and Change Dragon confirmation flows
+- Dark green primary buttons and larger centered button text
 - Local arena, dragon, and projectile assets with Canvas fallbacks
 - Automated Node tests for major flow and input behavior
 
@@ -111,10 +112,11 @@ Later stages increase enemy HP, enemy damage, and enemy attack pressure. Enemy i
 
 ## 12. Testing And Validation
 
-The project has lightweight automated tests for:
+The project has 32 lightweight automated tests for:
 
 - Main Menu and Tutorial flow
 - Dragon selection and game state transitions
+- Countdown behavior before match timers start
 - Win, loss, retry, and reset behavior
 - Ultimate starting cooldown
 - Voice command processing and duplicate suppression
@@ -130,16 +132,7 @@ node --test tests/game-flow.test.js
 
 ## 13. Scope Boundaries
 
-The prototype intentionally does not include:
-
-- Movement or aiming
-- Online multiplayer
-- Accounts or persistent saves
-- Monetization
-- Multiple arenas
-- Build tooling or framework migration
-
-This keeps the project focused on the command-combat loop and voice interaction.
+The prototype intentionally does not include movement, aiming, online multiplayer, accounts, persistent saves, monetization, multiple arenas, build tooling, or framework migration.
 
 ## 14. Known Constraints
 
@@ -151,14 +144,14 @@ This keeps the project focused on the command-combat loop and voice interaction.
 ## 15. Suggested Slide Structure
 
 1. Title: Dragon Fighter
-2. Problem / Concept: fast dragon duels using voice commands
-3. Core Loop: choose dragon, fight, win, upgrade, repeat
+2. Concept: fast dragon duels using voice commands
+3. Core Loop: choose dragon, countdown, fight, win, upgrade, repeat
 4. Dragon Selection: Ember, Tide, Moss
-5. Combat Commands: Attack, Defence, Block, Ultimate
+5. Combat Commands: Attack, Defense, Block, Ultimate
 6. Input System: voice, keyboard, Canvas buttons
-7. Progression: upgrades and stage scaling
-8. Technical Build: single-file Canvas prototype
-9. Current Status: implemented features and tests
+7. Voice Flow: Listen Command -> speak -> Execute Command
+8. Progression: upgrades and stage scaling
+9. Technical Build: single-file Canvas prototype
 10. Next Steps: licensed assets, more tests, browser playtesting, balance tuning
 
 ## 16. Next Priorities
@@ -167,4 +160,4 @@ This keeps the project focused on the command-combat loop and voice interaction.
 - Add focused tests for damage priority, upgrade formulas, stage scaling, and voice normalization.
 - Verify microphone behavior on target desktop and mobile browsers.
 - Tune combat values from playtest feedback.
-- Visually review tutorial and pause screens across screen sizes.
+- Visually review tutorial, countdown, and pause screens across screen sizes.
