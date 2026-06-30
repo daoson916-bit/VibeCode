@@ -2568,6 +2568,16 @@
             if (recognition !== session) return;
             const reason = micStopReason;
             listening = false;
+            if (micRequested && !reason && state.phase === "playing" && !state.paused) {
+              recognition = null;
+              state.micListening = true;
+              state.micSlowTimeElapsed = 0;
+              startVoiceScanner();
+              state.note = cfg.micListeningText;
+              recognitionRestartTimer = setTimeout(startRecognition, 120);
+              log("mic_auto_restart", { sessionId });
+              return;
+            }
             state.micListening = false;
             state.micSlowTimeElapsed = 0;
             micRequested = false;
@@ -2582,6 +2592,12 @@
       
           session.onerror = (e) => {
             if (recognition !== session) return;
+            if (e.error === "no-speech" && micRequested) {
+              speechError = "";
+              state.note = cfg.micListeningText;
+              log("mic_no_speech_continue", { sessionId });
+              return;
+            }
             speechError = e.error === "no-speech"
               ? "No speech heard. Time restored."
               : e.error === "aborted" && !micRequested

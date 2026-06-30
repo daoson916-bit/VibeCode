@@ -901,6 +901,39 @@ test("mic timeout turns off listening and restores normal speed", () => {
   assert.equal(app.gameplayMultiplier(), app.CONFIG.timerMultiplier);
 });
 
+test("speech auto-end while holding restarts recognition without leaving push-to-talk", () => {
+  const app = loadGame();
+  startBattle(app);
+  app.toggleMic();
+  const firstRecognition = app.getRecognition();
+
+  firstRecognition.onend();
+
+  assert.equal(app.state.micListening, true);
+  assert.equal(app.micSlowTimeActive(), true);
+  assert.equal(app.manualCombatInputDisabled(), true);
+
+  app.__test.runTimeouts();
+  const restartedRecognition = app.getRecognition();
+
+  assert.notEqual(restartedRecognition, firstRecognition);
+  assert.equal(restartedRecognition.started, true);
+  assert.equal(app.state.micListening, true);
+});
+
+test("no-speech error while holding keeps push-to-talk active", () => {
+  const app = loadGame();
+  startBattle(app);
+  app.toggleMic();
+  const recognition = app.getRecognition();
+
+  recognition.onerror({ error: "no-speech" });
+
+  assert.equal(app.state.micListening, true);
+  assert.equal(app.micSlowTimeActive(), true);
+  assert.equal(app.getRecognition(), recognition);
+});
+
 test("mic permission failure turns off listening and slow-time", () => {
   const app = loadGame();
   startBattle(app);
