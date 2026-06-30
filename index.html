@@ -66,6 +66,22 @@
           micSlowTimeMaxSeconds: 5,
           micSlowTimeFadeInSeconds: 0,
           micSlowTimeFadeOutSeconds: 0.2,
+          enableMicPromptOnStart: true,
+          enableVoiceInput: true,
+          micPermissionPromptText: "Enable microphone to use voice commands.",
+          micPermissionSupportText: "Voice is recommended. Keyboard and buttons still work.",
+          micPermissionReadyText: "Microphone ready.",
+          micPermissionDeniedText: "Microphone blocked. Use keyboard or buttons.",
+          enableCommandSfx: true,
+          commandSfxVolume: 0.18,
+          commandSfxDurationMs: 190,
+          commandSfx: {
+            attack: { frequency: 392, rampFrequency: 440, type: "triangle" },
+            defence: { frequency: 262, rampFrequency: 196, type: "sine" },
+            block: { frequency: 220, rampFrequency: 165, type: "square" },
+            skill: { frequency: 523, rampFrequency: 659, type: "sawtooth" }
+          },
+          preventOverlappingCommandSfx: true,
           allowMultipleVoiceCommandsPerPhrase: true,
           allowDuplicateCommandInSameVoicePhrase: false,
           maxVoiceCommandsPerPhrase: 4,
@@ -104,7 +120,9 @@
               titleY: 230,
               subtitleY: 278,
               playButton: { x: 565, y: 326, w: 270, h: 58 },
-              tutorialButton: { x: 565, y: 398, w: 270, h: 52 }
+              tutorialButton: { x: 565, y: 398, w: 270, h: 52 },
+              micPromptPanel: { x: 430, y: 462, w: 540, h: 124 },
+              micPromptButton: { x: 575, y: 531, w: 250, h: 42 }
             },
             tutorial: {
               storageKey: "dragon-fighter-tutorial-complete",
@@ -360,6 +378,8 @@
             paused: false,
             micListening: false,
             micSlowTimeElapsed: 0,
+            micPermissionState: "unknown",
+            micPromptVisible: false,
             countdownTimer: 0,
             pauseStartedAt: 0,
             pauseRenderNow: 0,
@@ -502,6 +522,11 @@
         let micRequested = false;
         let recognitionRestartTimer = null;
         let voiceScanTimer = null;
+        let micPermissionRequestInFlight = false;
+        let audioContext = null;
+        let commandSfxLockTimer = null;
+        let isCommandSfxPlaying = false;
+        let currentCommandSfxName = null;
         const voiceCommandQueue = [];
         let speechError = "";
         let micStopReason = "";
@@ -882,6 +907,147 @@
           return `Q Attack | W Defense | E Block | R Ultimate`;
         }
 
+        function canUseMicrophone() {
+          return Boolean(cfg.enableVoiceInput && SpeechRecognition && window.navigator?.mediaDevices?.getUserMedia);
+        }
+
+        function applyMicPermissionState(permissionState) {
+          if (permissionState === "granted") {
+            state.micPermissionState = "granted";
+            state.micPromptVisible = false;
+            state.note = cfg.micPermissionReadyText;
+            log("mic_permission_granted");
+            return;
+          }
+          if (permissionState === "denied") {
+            state.micPermissionState = "denied";
+            state.micPromptVisible = true;
+            state.note = cfg.micPermissionDeniedText;
+            log("mic_permission_denied");
+            return;
+          }
+          if (permissionState === "unavailable") {
+            state.micPermissionState = "unavailable";
+            state.micPromptVisible = true;
+            state.note = cfg.micPermissionDeniedText;
+            log("mic_unavailable");
+            return;
+          }
+          state.micPermissionState = permissionState;
+          state.micPromptVisible = cfg.enableMicPromptOnStart;
+        }
+
+        async function checkMicPermissionOnStart() {
+          log("mic_permission_check_started");
+          if (!cfg.enableMicPromptOnStart || !cfg.enableVoiceInput) return "disabled";
+          if (!canUseMicrophone()) {
+            applyMicPermissionState("unavailable");
+            state.note = "Voice unavailable. Use keyboard or buttons.";
+            log("mic_unavailable");
+            return "unavailable";
+          }
+          try {
+            const permissionStatus = await window.navigator.permissions?.query?.({ name: "microphone" });
+            const status = permissionStatus?.state || "prompt";
+            applyMicPermissionState(status === "prompt" ? "prompt" : status);
+            return state.micPermissionState;
+          } catch (error) {
+            applyMicPermissionState("prompt");
+            return "prompt";
+          }
+        }
+
+        async function requestMicrophonePermission(startListeningAfterGrant = false) {
+          if (micPermissionRequestInFlight) return state.micPermissionState;
+          if (!canUseMicrophone()) {
+            applyMicPermissionState("unavailable");
+            state.note = "Voice unavailable. Use keyboard or buttons.";
+            log("mic_unavailable");
+            return "unavailable";
+          }
+
+          micPermissionRequestInFlight = true;
+          state.note = "Requesting microphone access...";
+          try {
+            const stream = await window.navigator.mediaDevices.getUserMedia({ audio: true });
+            stream?.getTracks?.().forEach((track) => track.stop());
+            applyMicPermissionState("granted");
+            state.message = cfg.micPermissionReadyText;
+            if (startListeningAfterGrant) {
+              micRequested = true;
+              speechError = "";
+              clearVoiceCommandQueue();
+              startVoiceScanner();
+              startRecognition();
+            }
+            return "granted";
+          } catch (error) {
+            applyMicPermissionState("denied");
+            state.message = cfg.micPermissionDeniedText;
+            return "denied";
+          } finally {
+            micPermissionRequestInFlight = false;
+          }
+        }
+
+        function getCommandSfxName(command) {
+          if (command === "ultimate") return "skill";
+          return command;
+        }
+
+        function ensureAudioContext() {
+          if (!cfg.enableCommandSfx) return null;
+          if (audioContext) return audioContext;
+          const AudioCtor = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtor) return null;
+          audioContext = new AudioCtor();
+          return audioContext;
+        }
+
+        function finishCommandSfx(commandName) {
+          isCommandSfxPlaying = false;
+          currentCommandSfxName = null;
+          commandSfxLockTimer = null;
+          log("command_sfx_finished", { commandName });
+        }
+
+        function requestCommandSfx(command) {
+          const commandName = getCommandSfxName(command);
+          if (!cfg.enableCommandSfx) return false;
+          if (cfg.preventOverlappingCommandSfx && isCommandSfxPlaying) {
+            log("command_sfx_skipped", { commandName, currentCommandSfxName });
+            return false;
+          }
+
+          const sfxConfig = cfg.commandSfx[commandName];
+          const ctxAudio = ensureAudioContext();
+          if (!ctxAudio || !sfxConfig) return false;
+
+          isCommandSfxPlaying = true;
+          currentCommandSfxName = commandName;
+          if (commandSfxLockTimer) clearTimeout(commandSfxLockTimer);
+          commandSfxLockTimer = setTimeout(() => finishCommandSfx(commandName), cfg.commandSfxDurationMs);
+
+          try {
+            const oscillator = ctxAudio.createOscillator();
+            const gain = ctxAudio.createGain();
+            oscillator.type = sfxConfig.type;
+            oscillator.frequency.setValueAtTime(sfxConfig.frequency, ctxAudio.currentTime);
+            oscillator.frequency.linearRampToValueAtTime(sfxConfig.rampFrequency, ctxAudio.currentTime + cfg.commandSfxDurationMs / 1000);
+            gain.gain.setValueAtTime(cfg.commandSfxVolume, ctxAudio.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctxAudio.currentTime + cfg.commandSfxDurationMs / 1000);
+            oscillator.connect(gain);
+            gain.connect(ctxAudio.destination);
+            oscillator.start();
+            oscillator.stop(ctxAudio.currentTime + cfg.commandSfxDurationMs / 1000);
+            log("command_sfx_played", { commandName });
+            return true;
+          } catch (error) {
+            finishCommandSfx(commandName);
+            return false;
+          }
+        }
+
         function micSlowTimeActive() {
           return state.phase === "playing" && state.countdownTimer <= 0 && state.micListening;
         }
@@ -1162,6 +1328,7 @@
             state.enemyState = "Incoming";
             state.message = "Attack charging. Projectile incoming.";
             scheduleAttack("player", "enemy", "attack", damage, "#fb923c", 18);
+            requestCommandSfx("attack");
             return true;
           }
 
@@ -1172,6 +1339,7 @@
             state.playerState = "Defense";
             state.message = `Defense shield active for ${duration.toFixed(1)} seconds`;
             shield(cfg.battleLayout.playerDragon.hitX, cfg.battleLayout.playerDragon.hitY, "#60a5fa", 28);
+            requestCommandSfx("defence");
             return true;
           }
 
@@ -1181,6 +1349,7 @@
             state.playerState = "Block";
             state.message = `Block active for ${state.blockTimer.toFixed(1)} seconds`;
             shield(cfg.battleLayout.playerDragon.hitX, cfg.battleLayout.playerDragon.hitY, "#f6c453", 18);
+            requestCommandSfx("block");
             return true;
           }
 
@@ -1190,6 +1359,7 @@
             state.enemyState = "Danger";
             state.message = "Ultimate charging. Heavy projectile incoming.";
             scheduleAttack("player", "enemy", "ultimate", Math.round(core.modifiedUltimateDamage(cfg, state) * (voiceBonusEnabled ? cfg.voiceSkillDamageMultiplier : 1)), "#a78bfa", 32);
+            requestCommandSfx("ultimate");
             return true;
           }
 
@@ -1218,6 +1388,11 @@
           if (micRequested) {
             stopMicListening("manual");
             state.note = "Mic is off. Press Listen Command to listen again.";
+            return;
+          }
+
+          if (state.micPermissionState !== "granted") {
+            requestMicrophonePermission(true);
             return;
           }
 
@@ -1555,6 +1730,32 @@
           ctx.font = "20px system-ui";
           ctx.fillText(cfg.flow.labels.subtitle, cfg.viewport.centerX, cfg.flow.menu.subtitleY);
           drawControls();
+          drawMicPermissionPrompt();
+          ctx.textAlign = "left";
+        }
+
+        function drawMicPermissionPrompt() {
+          if (state.phase !== "menu" || !state.micPromptVisible || state.micPermissionState === "granted") return;
+          const prompt = cfg.flow.menu.micPromptPanel;
+          const button = cfg.flow.menu.micPromptButton;
+          const canRequest = !["denied", "unavailable"].includes(state.micPermissionState);
+          rr(prompt.x, prompt.y, prompt.w, prompt.h, 22, "#07101de8", "#34d39988");
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#fff4d6";
+          ctx.font = "bold 20px system-ui";
+          ctx.fillText(
+            state.micPermissionState === "denied" || state.micPermissionState === "unavailable"
+              ? cfg.micPermissionDeniedText
+              : cfg.micPermissionPromptText,
+            cfg.viewport.centerX,
+            prompt.y + 34
+          );
+          ctx.fillStyle = "#cbd5e1";
+          ctx.font = "16px system-ui";
+          ctx.fillText(cfg.micPermissionSupportText, cfg.viewport.centerX, prompt.y + 64);
+          if (canRequest) {
+            canvasButton("enableMicrophone", button.x, button.y, button.w, button.h, "Enable Microphone", "#064e3bdd", "#34d399");
+          }
           ctx.textAlign = "left";
         }
 
@@ -2324,10 +2525,12 @@
         function setupSpeech() {
           if (!SpeechRecognition) {
             if (state.phase !== "tutorial") state.note = "This browser does not support Web Speech API. Use canvas buttons or Q/W/E/R.";
+            applyMicPermissionState("unavailable");
             return;
           }
 
           if (state.phase !== "tutorial") state.note = "Voice is supported. Say one full English command word.";
+          checkMicPermissionOnStart();
         }
 
         canvas.addEventListener("pointerup", (e) => {
@@ -2353,6 +2556,10 @@
           }
           if (button.id === "playNow") {
             playNow();
+            return;
+          }
+          if (button.id === "enableMicrophone") {
+            requestMicrophonePermission();
             return;
           }
           if (button.id === "openTutorial") {
@@ -2482,10 +2689,15 @@
           processRecognizedCommand,
           commandFromSpeech,
           commandFromKey,
+          checkMicPermissionOnStart,
+          requestMicrophonePermission,
+          requestCommandSfx,
           gameplayMultiplier,
           micSlowTimeActive,
           manualCombatInputDisabled,
           getRecognition: () => recognition,
+          getMicPermissionState: () => state.micPermissionState,
+          getSfxState: () => ({ isCommandSfxPlaying, currentCommandSfxName }),
           getButtons: () => buttons.slice(),
           draw
         };

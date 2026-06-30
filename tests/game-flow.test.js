@@ -8,7 +8,12 @@ function loadGame() {
   const source = html.match(/<script>([\s\S]*?)<\/script>/)[1];
   const intervals = [];
   const keyHandlers = [];
+  const pointerHandlers = [];
   const textCalls = [];
+  const timeouts = [];
+  let permissionState = "granted";
+  let failGetUserMedia = false;
+  let mediaRequestCount = 0;
   const context2d = new Proxy({}, {
     get(target, property) {
       if (property === "createLinearGradient") return () => ({ addColorStop() {} });
@@ -30,7 +35,9 @@ function loadGame() {
     }
   });
   const canvas = {
-    addEventListener() {},
+    addEventListener(type, handler) {
+      if (type === "pointerup") pointerHandlers.push(handler);
+    },
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 1400, height: 620 }),
     getContext: () => context2d,
     style: {}
@@ -53,26 +60,96 @@ function loadGame() {
       if (this.onend) this.onend();
     }
   }
+  class AudioContextStub {
+    constructor() {
+      this.currentTime = 0;
+      this.destination = {};
+    }
+    createOscillator() {
+      return {
+        type: "sine",
+        frequency: {
+          setValueAtTime() {},
+          linearRampToValueAtTime() {}
+        },
+        connect() {},
+        start() {},
+        stop() {}
+      };
+    }
+    createGain() {
+      return {
+        gain: {
+          setValueAtTime() {},
+          exponentialRampToValueAtTime() {}
+        },
+        connect() {}
+      };
+    }
+  }
+  const navigator = {
+    permissions: {
+      async query() {
+        return { state: permissionState };
+      }
+    },
+    mediaDevices: {
+      async getUserMedia() {
+        mediaRequestCount += 1;
+        if (failGetUserMedia) throw new Error("blocked");
+        permissionState = "granted";
+        return {
+          getTracks: () => [{ stop() {} }]
+        };
+      }
+    }
+  };
   const context = {
     clearInterval() {},
-    clearTimeout() {},
+    clearTimeout: (id) => {
+      const timeout = timeouts.find((item) => item.id === id);
+      if (timeout) timeout.cleared = true;
+    },
     console,
     document: { getElementById: () => canvas },
     Image: ImageStub,
     Math,
+    navigator,
     performance: { now: () => context.now },
     requestAnimationFrame() {},
     setInterval: (handler, ms) => {
       intervals.push({ handler, ms });
       return intervals.length;
     },
-    setTimeout: () => 1,
+    setTimeout: (handler, ms) => {
+      const timeout = { id: timeouts.length + 1, handler, ms, cleared: false };
+      timeouts.push(timeout);
+      return timeout.id;
+    },
     window,
     now: 0
   };
   window.SpeechRecognition = SpeechRecognitionStub;
+  window.AudioContext = AudioContextStub;
+  window.navigator = navigator;
   vm.runInNewContext(source, context);
-  window.DragonFighter.__test = { context, intervals, keyHandlers, textCalls };
+  window.DragonFighter.__test = {
+    context,
+    intervals,
+    keyHandlers,
+    pointerHandlers,
+    textCalls,
+    timeouts,
+    setPermissionState: (value) => { permissionState = value; },
+    setGetUserMediaFailure: (value) => { failGetUserMedia = value; },
+    getMediaRequestCount: () => mediaRequestCount,
+    runTimeouts: () => {
+      timeouts.filter((timeout) => !timeout.cleared).forEach((timeout) => {
+        timeout.cleared = true;
+        timeout.handler();
+      });
+    }
+  };
   return window.DragonFighter;
 }
 
@@ -233,6 +310,41 @@ test("voice recognition is English and uses the configured 0.5s interval", () =>
   assert.equal(app.CONFIG.voice.scanIntervalSeconds, 0.5);
   assert.ok(app.__test.intervals.some((interval) => interval.ms === app.CONFIG.voice.scanIntervalMs));
   assert.equal(app.CONFIG.voice.scanIntervalMs, 500);
+});
+
+test("mic prompt appears on page open when permission is not yet granted", async () => {
+  const app = loadGame();
+  app.__test.setPermissionState("prompt");
+  await app.checkMicPermissionOnStart();
+  app.draw();
+
+  assert.equal(app.getMicPermissionState(), "prompt");
+  assert.ok(app.getButtons().some((button) => button.id === "enableMicrophone"));
+  assert.ok(app.__test.textCalls.some((call) => call[0] === app.CONFIG.micPermissionPromptText));
+});
+
+test("mic prompt does not appear again when permission is already granted", async () => {
+  const app = loadGame();
+  app.__test.setPermissionState("granted");
+  await app.checkMicPermissionOnStart();
+  app.draw();
+
+  assert.equal(app.getMicPermissionState(), "granted");
+  assert.ok(!app.getButtons().some((button) => button.id === "enableMicrophone"));
+});
+
+test("denied microphone permission still allows fallback input", async () => {
+  const app = loadGame();
+  app.__test.setPermissionState("denied");
+  await app.checkMicPermissionOnStart();
+  startBattle(app);
+  app.state.cd.attack = 0;
+
+  pressKey(app, "q");
+
+  assert.equal(app.getMicPermissionState(), "denied");
+  assert.equal(app.state.accepted, "ATTACK");
+  assert.ok(app.state.pendingAttacks.length > 0);
 });
 
 test("each mic activation uses a fresh recognition session for the next command", () => {
@@ -437,6 +549,50 @@ test("voice defense lasts longer than keyboard defense", () => {
   pressKey(keyboardApp, "w");
 
   assert.equal(voiceApp.state.defenceTimer, keyboardApp.state.defenceTimer * voiceApp.CONFIG.voiceDefenceDurationMultiplier);
+});
+
+test("successful attack plays command sfx", () => {
+  const app = loadGame();
+  startBattle(app);
+  app.state.cd.attack = 0;
+
+  assert.equal(app.useCommand("attack", "keyboard"), true);
+  assert.deepEqual(app.getSfxState(), { isCommandSfxPlaying: true, currentCommandSfxName: "attack" });
+});
+
+test("cooldown failure does not play command sfx", () => {
+  const app = loadGame();
+  startBattle(app);
+  app.state.cd.attack = 1.2;
+
+  assert.equal(app.useCommand("attack", "keyboard"), false);
+  assert.deepEqual(app.getSfxState(), { isCommandSfxPlaying: false, currentCommandSfxName: null });
+});
+
+test("command sfx skips overlap but gameplay still executes", () => {
+  const app = loadGame();
+  startBattle(app);
+  app.state.cd.attack = 0;
+  app.state.cd.ultimate = 0;
+
+  assert.equal(app.useCommand("attack", "keyboard"), true);
+  assert.equal(app.useCommand("ultimate", "keyboard"), true);
+  assert.equal(app.state.pendingAttacks.length, 2);
+  assert.deepEqual(app.getSfxState(), { isCommandSfxPlaying: true, currentCommandSfxName: "attack" });
+});
+
+test("command sfx lock releases after timeout so later command can play", () => {
+  const app = loadGame();
+  startBattle(app);
+  app.state.cd.attack = 0;
+  app.state.cd.ultimate = 0;
+
+  assert.equal(app.useCommand("attack", "keyboard"), true);
+  app.__test.runTimeouts();
+  assert.deepEqual(app.getSfxState(), { isCommandSfxPlaying: false, currentCommandSfxName: null });
+
+  assert.equal(app.useCommand("ultimate", "keyboard"), true);
+  assert.deepEqual(app.getSfxState(), { isCommandSfxPlaying: true, currentCommandSfxName: "skill" });
 });
 
 test("mic listening text appears in canvas while listening and disappears after stop", () => {
