@@ -93,3 +93,5 @@ Review the pause menu and tutorial screens visually in a browser, then replace t
 - Updated `docs/gdd.md`, `docs/tdd.md`, and `docs/plan.md` to reflect the current single-file game, optional tutorial, pause flow, Q/W/E/R combat keys, Web Speech behavior, Change Dragon confirmation, and 21-test validation surface.
 - Improved voice combat feedback and balance: command buttons now show cooldown seconds, `processVoiceTick()` processes queued transcripts, repeated speech such as "attack attack" casts once, voice debug shows heard/parsed/result state, and config-controlled voice assist slows enemy timing while mic mode is active.
 - Expanded flow tests to 27 cases covering transcript ticks, repeated speech, cooldown voice feedback, voice assist, and button cooldown labels.
+- Updated mic slow-time so it starts immediately when speech recognition begins listening, scales gameplay timers with `micSlowTimeMultiplier`, and stops on valid command, timeout, manual stop, or mic error.
+- Expanded flow tests to 31 cases covering immediate slow-time, scaled match/cooldown/AI timers, timeout cleanup, and permission-failure cleanup.

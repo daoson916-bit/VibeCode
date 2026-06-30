@@ -193,3 +193,15 @@
 - Expanded `tests/game-flow.test.js` to 27 tests for voice tick processing, repeated speech, cooldown voice feedback, manual lockout, voice assist, and button cooldown display.
 - `git diff --check` passed; Node-based tests could not run because `node` is not available on PATH in this shell.
 - Python static server check returned HTTP 200 at `http://127.0.0.1:5174/index.html`.
+
+## 2026-06-30
+
+### Immediate Mic Slow-Time
+
+- Read current root `index.html`, `docs/agent_state.md`, and the last 30 lines of `docs/work_log.md`.
+- Replaced AI-only voice assist with top-level timer config: `timerMultiplier`, `micSlowTimeMultiplier`, `micSlowTimeMaxSeconds`, `micSlowTimeFadeInSeconds`, and `micSlowTimeFadeOutSeconds`.
+- Added `state.micListening` and immediate slow-time activation from `recognition.onstart`.
+- Updated gameplay dt so match time, cooldowns, AI timer, Defence/Block timers, Frenzy, and projectile timing use scaled dt while cosmetic particles use raw dt.
+- Stopped mic listening and slow-time on valid command recognition before executing the command, timeout, manual stop, pause/menu navigation, and mic errors.
+- Added Canvas slow-time tint and "Listening... Time slowed" text during active battle listening.
+- Expanded `tests/game-flow.test.js` to 31 tests covering immediate slow-time, no-speech-before-slow-time, command cleanup, timeout cleanup, permission-failure cleanup, and scaled match/cooldown/AI timers.

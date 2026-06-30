@@ -8,14 +8,14 @@
 - Implemented shared voice, keyboard, and Canvas controls for Attack, Defence, Block, and Ultimate.
 - Remapped combat keyboard shortcuts to Q/W/E/R and removed the old A/D/B/U combat mapping.
 - Added Web Speech API support with `en-US`, transcript tick processing, repeated-speech handling, duplicate suppression, cooldown feedback, voice debug, and manual combat lockout while the mic is active.
-- Added config-controlled voice assist that slows the enemy timer while mic mode is active.
+- Replaced AI-only voice assist with config-controlled mic slow-time that starts immediately on mic listening and scales gameplay timers during battle.
 - Implemented projectiles, damage resolution, cooldowns, Defence, Block, Ultimate, enemy attacks, timer results, pause freezing, button cooldown labels, and combat feedback.
 - Added stage scaling, enemy rotation, four upgrade paths, and win-to-upgrade progression.
 - Added Continue-only win navigation and Retry/Main Menu loss and draw navigation.
 - Preserved dragon, stage, and upgrades on result retry; reset the complete run on Main Menu.
 - Added paused Retry Match, Resume, and Back to Main Menu.
 - Made Ultimate start on full cooldown for every battle and retry.
-- Added relative local assets, Canvas fallbacks, GitHub Pages deployment, and 27 focused flow/input tests.
+- Added relative local assets, Canvas fallbacks, GitHub Pages deployment, and 31 focused flow/input tests.
 
 ## Current Validation
 

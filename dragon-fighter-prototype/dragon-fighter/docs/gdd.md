@@ -43,7 +43,7 @@ The main fantasy is voice-command combat, but the game also supports keyboard an
 - Ultimate starts on full cooldown at the beginning of each new or retried battle.
 - Block takes priority over Defence when enemy damage lands.
 - Attack and Ultimate use projectile timing: cast warning, travel, then damage resolution.
-- The AI currently attacks automatically at stage-scaled random intervals and is slightly slower while voice assist is active.
+- The AI currently attacks automatically at stage-scaled random intervals. Full gameplay time slows while the microphone is actively listening during battle.
 - Reducing the enemy to 0 HP wins. Reaching 0 player HP loses. At timeout, higher HP wins; equal HP draws.
 
 ## Progression
@@ -62,6 +62,7 @@ The main fantasy is voice-command combat, but the game also supports keyboard an
 - Keyboard navigation: `Enter` advances supported menu/tutorial/result steps, `Escape` exits tutorial or resumes pause, `P` pauses during battle, number keys choose upgrades.
 - Canvas: microphone toggle, command buttons, menu buttons, tutorial navigation, pause, result, upgrade, and confirmation controls.
 - Manual combat buttons and combat keys are disabled while microphone input is active; voice commands remain available.
+- Mic listening immediately slows gameplay time during battle, then ends on a valid command, timeout, manual stop, or mic error.
 
 ## Presentation
 

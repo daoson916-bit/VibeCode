@@ -234,13 +234,46 @@ test("valid full-word voice casts immediately when ready and cooldown blocks cas
   assert.equal(cast, true);
   assert.equal(app.state.accepted, "ATTACK");
   assert.ok(app.state.cd.attack > 0);
+  assert.equal(app.state.micListening, false);
   const pendingAfterCast = app.state.pendingAttacks.length;
 
+  app.toggleMic();
   const cooldownCast = app.processRecognizedCommand(app.commandFromSpeech("attack"), "attack:2", 2000);
   assert.equal(cooldownCast, false);
   assert.equal(app.state.pendingAttacks.length, pendingAfterCast);
   assert.match(app.state.message, /cooldown/i);
+  assert.equal(app.state.micListening, false);
   assert.equal(app.commandFromSpeech("attack block"), null);
+});
+
+test("slow-time starts immediately when mic begins listening", () => {
+  const app = loadGame();
+  startBattle(app);
+
+  app.toggleMic();
+
+  assert.equal(app.state.micListening, true);
+  assert.equal(app.micSlowTimeActive(), true);
+  assert.equal(app.gameplayMultiplier(), app.CONFIG.timerMultiplier * app.CONFIG.micSlowTimeMultiplier);
+  assert.equal(app.state.voiceResult, "-");
+});
+
+test("slow-time does not wait for recognized speech and scales gameplay timers", () => {
+  const app = loadGame();
+  startBattle(app);
+  app.state.time = 50;
+  app.state.enemyTimer = 10;
+  app.state.cd.attack = 2;
+  app.state.defenceTimer = 1;
+  app.toggleMic();
+
+  app.update(1);
+
+  assert.equal(app.state.time, 50 - app.CONFIG.micSlowTimeMultiplier);
+  assert.equal(app.state.enemyTimer, 10 - app.CONFIG.micSlowTimeMultiplier);
+  assert.equal(app.state.cd.attack, 2 - app.CONFIG.micSlowTimeMultiplier);
+  assert.equal(app.state.defenceTimer, 1 - app.CONFIG.micSlowTimeMultiplier);
+  assert.equal(app.state.micListening, true);
 });
 
 test("processVoiceTick processes valid transcript into one command", () => {
@@ -257,6 +290,8 @@ test("processVoiceTick processes valid transcript into one command", () => {
   assert.equal(app.state.accepted, "ATTACK");
   assert.equal(app.state.parsedCommand, "ATTACK");
   assert.equal(app.state.voiceResult, "Cast");
+  assert.equal(app.state.micListening, false);
+  assert.equal(app.gameplayMultiplier(), app.CONFIG.timerMultiplier);
 });
 
 test("repeated speech attack attack triggers Attack only once", () => {
@@ -273,6 +308,7 @@ test("repeated speech attack attack triggers Attack only once", () => {
   assert.equal(app.state.accepted, "ATTACK");
   assert.equal(app.state.pendingAttacks.length, 1);
   assert.equal(app.state.voiceResult, "Cast");
+  assert.equal(app.state.micListening, false);
 });
 
 test("processVoiceTick shows cooldown feedback for cooldown command", () => {
@@ -289,6 +325,7 @@ test("processVoiceTick shows cooldown feedback for cooldown command", () => {
   assert.equal(app.state.parsedCommand, "ATTACK");
   assert.equal(app.state.voiceResult, "Cooldown");
   assert.match(app.state.message, /cooldown/i);
+  assert.equal(app.state.micListening, false);
 });
 
 test("duplicate voice result does not cast twice", () => {
@@ -322,6 +359,7 @@ test("manual command buttons and combat keys are disabled while mic is active", 
   app.state.cd.attack = 0;
   assert.equal(app.processRecognizedCommand("attack", "attack:voice", 1000), true);
   assert.equal(app.state.accepted, "ATTACK");
+  assert.equal(app.manualCombatInputDisabled(), false);
 });
 
 test("buttons and combat keys work again after mic is stopped", () => {
@@ -437,7 +475,7 @@ test("pause freezes timer, AI, cooldowns, effects, projectiles, and Frenzy", () 
   assert.equal(app.state.pendingAttacks[0].elapsed, 0.2);
 });
 
-test("AI timer is slower while mic is on and voice assist is enabled", () => {
+test("AI timer is slower while mic listening is active", () => {
   const app = loadGame();
   startBattle(app);
   app.state.enemyTimer = 10;
@@ -450,9 +488,31 @@ test("AI timer is slower while mic is on and voice assist is enabled", () => {
   assisted.state.enemyTimer = 10;
   assisted.update(1);
 
-  assert.equal(assisted.CONFIG.voice.assist.enabled, true);
-  assert.equal(assisted.CONFIG.voice.assist.enemyIntervalMultiplier, 1.3);
-  assert.equal(assisted.state.enemyTimer, 10 - 1 / assisted.CONFIG.voice.assist.enemyIntervalMultiplier);
+  assert.equal(assisted.state.enemyTimer, 10 - assisted.CONFIG.micSlowTimeMultiplier);
+});
+
+test("mic timeout turns off listening and restores normal speed", () => {
+  const app = loadGame();
+  startBattle(app);
+  app.toggleMic();
+
+  app.update(app.CONFIG.micSlowTimeMaxSeconds);
+
+  assert.equal(app.state.micListening, false);
+  assert.equal(app.micSlowTimeActive(), false);
+  assert.equal(app.gameplayMultiplier(), app.CONFIG.timerMultiplier);
+});
+
+test("mic permission failure turns off listening and slow-time", () => {
+  const app = loadGame();
+  startBattle(app);
+  app.toggleMic();
+
+  app.getRecognition().onerror({ error: "not-allowed" });
+
+  assert.equal(app.state.micListening, false);
+  assert.equal(app.micSlowTimeActive(), false);
+  assert.equal(app.gameplayMultiplier(), app.CONFIG.timerMultiplier);
 });
 
 test("combat buttons show cooldown state on the button", () => {

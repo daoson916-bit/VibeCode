@@ -60,15 +60,16 @@
           enemyProjectileTravelTime: 1.15,
           enemyMinWait: 1.3,
           enemyMaxWait: 2.4,
+          timerMultiplier: 1,
+          micSlowTimeMultiplier: 0.35,
+          micSlowTimeMaxSeconds: 3,
+          micSlowTimeFadeInSeconds: 0,
+          micSlowTimeFadeOutSeconds: 0.2,
           voice: {
             language: "en-US",
             scanIntervalMs: 500,
             scanIntervalSeconds: 0.5,
-            duplicateWindowMs: 650,
-            assist: {
-              enabled: true,
-              enemyIntervalMultiplier: 1.3
-            }
+            duplicateWindowMs: 650
           },
           combatKeys: {
             attack: "q",
@@ -347,6 +348,8 @@
             result: "",
             confirmChangeDragon: false,
             paused: false,
+            micListening: false,
+            micSlowTimeElapsed: 0,
             pauseStartedAt: 0,
             pauseRenderNow: 0,
             frenzyTimer: 0,
@@ -490,6 +493,7 @@
         let voiceScanTimer = null;
         const voiceCommandQueue = [];
         let speechError = "";
+        let micStopReason = "";
         let lastVoiceCommand = { signature: "", at: 0 };
         let last = performance.now();
 
@@ -695,10 +699,7 @@
         }
 
         function backToMainMenu() {
-          micRequested = false;
-          clearTimeout(recognitionRestartTimer);
-          stopVoiceScanner();
-          if (listening && recognition) recognition.stop();
+          stopMicListening("menu");
           Object.assign(state, createInitialState(cfg));
           state.phase = "menu";
           state.tutorialComplete = true;
@@ -709,6 +710,7 @@
 
         function pauseMatch() {
           if (state.phase !== "playing" || state.paused) return;
+          stopMicListening("pause");
           state.paused = true;
           state.pauseStartedAt = performance.now();
           state.pauseRenderNow = state.pauseStartedAt;
@@ -839,8 +841,41 @@
           return `Q Attack | W Defence | E Block | R Skill`;
         }
 
-        function voiceAssistMultiplier() {
-          return micRequested && cfg.voice.assist.enabled ? cfg.voice.assist.enemyIntervalMultiplier : 1;
+        function micSlowTimeActive() {
+          return state.phase === "playing" && state.micListening;
+        }
+
+        function gameplayMultiplier() {
+          return cfg.timerMultiplier * (micSlowTimeActive() ? cfg.micSlowTimeMultiplier : 1);
+        }
+
+        function stopMicListening(reason = "stop") {
+          const shouldStopRecognition = listening && recognition?.stop;
+          micStopReason = reason;
+          micRequested = false;
+          listening = false;
+          state.micListening = false;
+          state.micSlowTimeElapsed = 0;
+          clearTimeout(recognitionRestartTimer);
+          stopVoiceScanner();
+          if (shouldStopRecognition) {
+            try {
+              recognition.stop();
+            } catch (error) {
+              log("mic_stop_failed", { reason, message: error.message });
+            }
+          }
+          log("mic_stop", { reason });
+        }
+
+        function updateMicSlowTime(rawDt) {
+          if (!state.micListening) return;
+          if (state.phase !== "playing") return;
+          state.micSlowTimeElapsed += rawDt;
+          if (state.micSlowTimeElapsed >= cfg.micSlowTimeMaxSeconds) {
+            state.note = "Mic timed out. Time restored.";
+            stopMicListening("timeout");
+          }
         }
 
         function nextEnemyWait(enemy) {
@@ -944,6 +979,7 @@
           }
           lastVoiceCommand = { signature, at: now };
           const ready = state.cd[command] <= 0;
+          stopMicListening("command");
           useCommand(command, "voice");
           setVoiceDebug(command, ready ? "Cast" : "Cooldown");
           state.note = ready
@@ -1102,11 +1138,8 @@
           }
 
           if (micRequested) {
-            micRequested = false;
-            clearTimeout(recognitionRestartTimer);
-            stopVoiceScanner();
-            if (listening) recognition.stop();
-            else state.note = "Mic is off. Press Start Mic to listen again.";
+            stopMicListening("manual");
+            state.note = "Mic is off. Press Start Mic to listen again.";
             return;
           }
 
@@ -1240,9 +1273,11 @@
           }
         }
 
-        function update(dt) {
+        function update(rawDt) {
+          const dt = rawDt * gameplayMultiplier();
+          updateMicSlowTime(rawDt);
           if (state.paused) return;
-          if (state.shake > 0) state.shake -= dt;
+          if (state.shake > 0) state.shake -= rawDt;
           if (state.frenzyTimer > 0) state.frenzyTimer = Math.max(0, state.frenzyTimer - dt);
           ["attack", "defence", "block", "ultimate"].forEach((k) => {
             state.cd[k] = Math.max(0, state.cd[k] - dt);
@@ -1258,9 +1293,9 @@
           }
 
           state.particles.forEach((p) => {
-            p.life -= dt;
-            p.x += p.vx * dt;
-            p.y += p.vy * dt;
+            p.life -= rawDt;
+            p.x += p.vx * rawDt;
+            p.y += p.vy * rawDt;
             p.vx *= 0.98;
             p.vy *= 0.98;
           });
@@ -1269,7 +1304,7 @@
           if (state.phase !== "playing") return;
 
           state.time = Math.max(0, state.time - dt);
-          state.enemyTimer -= dt / voiceAssistMultiplier();
+          state.enemyTimer -= dt;
 
           state.pendingAttacks.forEach((attack) => {
             attack.elapsed += dt;
@@ -1793,6 +1828,19 @@
           return `Heard ${shortText(state.lastHeard, 16)} | ${state.parsedCommand} | ${state.voiceResult}`;
         }
 
+        function drawMicSlowTimeOverlay() {
+          if (!micSlowTimeActive()) return;
+          ctx.save();
+          ctx.fillStyle = "#38bdf822";
+          ctx.fillRect(0, 0, cfg.viewport.width, cfg.viewport.height);
+          rr(520, 104, 360, 34, 17, "#082f49d9", "#38bdf8aa");
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#e0f2fe";
+          ctx.font = "bold 18px system-ui";
+          ctx.fillText("Listening... Time slowed", cfg.viewport.centerX, 127);
+          ctx.restore();
+        }
+
         function drawGuardEffect(layout) {
           const blockActive = state.blockTimer > 0;
           const defenceActive = state.defenceTimer > 0;
@@ -2017,6 +2065,7 @@
             ctx.fill();
             ctx.globalAlpha = 1;
           });
+          drawMicSlowTimeOverlay();
 
           const upgradeRanks = Object.values(state.upgrades).reduce((sum, rank) => sum + rank, 0);
           drawStatusPanel(layout.playerHud, `P1 ${renderData.player.name}`, `${renderData.player.role} • Upgrades ${upgradeRanks}`, state.playerHp, playerMaxHp, "#34d399", state.selectedDragonId);
@@ -2038,7 +2087,7 @@
 
           ctx.fillStyle = listening ? "#34d399" : micRequested ? "#f6c453" : "#fca5a5";
           ctx.font = "bold 16px system-ui";
-          ctx.fillText(listening ? "Mic listening - 0.5s check" : micRequested ? "Mic reconnecting" : "Mic off", layout.mic.x, layout.mic.y);
+          ctx.fillText(micSlowTimeActive() ? "Listening... Time slowed" : listening ? "Mic listening - 0.5s check" : micRequested ? "Mic starting" : "Mic off", layout.mic.x, layout.mic.y);
 
           rr(layout.message.x, layout.message.y, layout.message.w, layout.message.h, 18, "#07101dd9", "#f6c45366");
           ctx.textAlign = "center";
@@ -2081,35 +2130,35 @@
 
           recognition.onstart = () => {
             listening = true;
+            state.micListening = true;
+            state.micSlowTimeElapsed = 0;
             speechError = "";
             startVoiceScanner();
-            state.note = "Listening. Say one full command word in English.";
+            state.note = state.phase === "playing" ? "Listening... Time slowed" : "Listening. Say one full command word in English.";
             log("mic_start");
           };
 
           recognition.onend = () => {
+            const reason = micStopReason;
             listening = false;
-            if (micRequested) {
-              state.note = speechError || "Reconnecting microphone...";
-              clearTimeout(recognitionRestartTimer);
-              recognitionRestartTimer = setTimeout(startRecognition, 250);
-            } else if (!speechError) {
+            state.micListening = false;
+            state.micSlowTimeElapsed = 0;
+            micRequested = false;
+            stopVoiceScanner();
+            if (!speechError && !["command", "timeout"].includes(reason) && !String(reason).startsWith("error:")) {
               state.note = "Mic is off. Press Start Mic to listen again.";
             }
+            micStopReason = "";
             log("mic_end");
           };
 
           recognition.onerror = (e) => {
-            const fatal = ["not-allowed", "service-not-allowed", "audio-capture"].includes(e.error);
-            if (fatal) {
-              micRequested = false;
-              stopVoiceScanner();
-            }
             speechError = e.error === "no-speech"
-              ? "No speech heard. Microphone will keep listening."
+              ? "No speech heard. Time restored."
               : e.error === "aborted" && !micRequested
                 ? "Mic is off. Press Start Mic to listen again."
                 : `Mic error: ${e.error}. Use canvas buttons or Q/W/E/R.`;
+            stopMicListening(`error:${e.error}`);
             state.note = speechError;
             log("mic_error", { error: e.error });
           };
@@ -2322,6 +2371,8 @@
           processRecognizedCommand,
           commandFromSpeech,
           commandFromKey,
+          gameplayMultiplier,
+          micSlowTimeActive,
           manualCombatInputDisabled,
           getRecognition: () => recognition,
           getButtons: () => buttons.slice(),

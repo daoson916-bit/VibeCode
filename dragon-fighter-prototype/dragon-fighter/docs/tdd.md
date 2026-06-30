@@ -15,7 +15,7 @@ The inline `cfg` object owns:
 - labels, menu/tutorial/result/pause/confirmation layout, and dragon-select layout
 - combat values, cooldowns, timers, and starting cooldown behavior
 - Q/W/E/R combat key mapping
-- voice language, scan interval, duplicate-result window, and voice assist multiplier
+- voice language, scan interval, duplicate-result window, base timer multiplier, mic slow-time multiplier, and mic slow-time timeout values
 - dragon modifiers, enemy roster, progression formulas, and upgrade definitions
 - asset paths, projectile profiles, and facing rules
 
@@ -44,7 +44,7 @@ Loss/draw retry restores the previous dragon, stage, and upgrades. Pause retry k
 - Block negates incoming damage. Defence applies the configured damage multiplier.
 - Cooldowns and active timers update each frame and clamp at zero.
 - Ultimate starts at its full command cooldown for every new or retried battle.
-- Enemy behavior currently schedules Attack only, using stage-scaled random waits. While voice assist is enabled and the mic is on, the enemy timer counts down by the configured multiplier.
+- Enemy behavior currently schedules Attack only, using stage-scaled random waits. While mic listening is active during battle, gameplay timers use the configured mic slow-time multiplier.
 - Pause freezes match time, AI timer, cooldowns, particles/effects, pending projectiles, screen shake, and Frenzy timer.
 
 ## Progression
@@ -68,6 +68,8 @@ The Web Speech API is optional. When available, recognition uses `en-US`, contin
 
 Manual combat controls are disabled while microphone input is active. Unsupported or denied microphone access leaves keyboard and Canvas controls usable.
 
+Mic slow-time starts in `recognition.onstart` when the mic is truly listening. It affects match time, cooldowns, AI timer, Defence/Block timers, and projectile timing via scaled gameplay dt. Cosmetic particles continue using raw dt. Slow-time ends on valid command recognition before the command executes, on timeout, on manual stop, or on mic errors.
+
 ## Public Test Surface
 
 `window.DragonFighter` exposes config, state, core helpers, flow functions, command mapping, input state, and rendering hooks for lightweight tests. It is a test/debug surface over the real single-file game, not a second implementation.
@@ -80,7 +82,7 @@ Run:
 node --test tests/game-flow.test.js
 ```
 
-The current 27 tests cover Main Menu and Tutorial flow, tutorial buttons, result routing, retry and Main Menu reset behavior, Ultimate starting cooldown, voice config and tick processing, repeated speech, cooldown voice feedback, mic/manual input lockout, Q/W/E/R mapping, old-key rejection, voice assist, button cooldown labels, pause behavior, paused retry/reset, and Change Dragon confirmation.
+The current 31 tests cover Main Menu and Tutorial flow, tutorial buttons, result routing, retry and Main Menu reset behavior, Ultimate starting cooldown, voice config and tick processing, repeated speech, cooldown voice feedback, immediate mic slow-time, slow-time timeout/error cleanup, scaled match/cooldown/AI timers, mic/manual input lockout, Q/W/E/R mapping, old-key rejection, button cooldown labels, pause behavior, paused retry/reset, and Change Dragon confirmation.
 
 Inline JavaScript can also be syntax-checked by extracting the script from `index.html` and running `node --check`. There is no build command.
 
